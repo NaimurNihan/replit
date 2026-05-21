@@ -4,6 +4,7 @@ import { Copy, Check, StickyNote, Trash2, ChevronDown, ChevronUp, X, Download, U
 const LS_NOTE       = "allmail_note_v1";
 const LS_CARDS      = "allmail_cards_v2";
 const LS_DONE       = "allmail_done_v1";
+const LS_COPIED     = "allmail_copied_v1"; // permanently green after copy
 const LS_DUEDATES   = "allmail_duedates_v2"; // values = "YYYY-MM-DD" ISO strings
 const LS_SAVED_NOTE = "allmail_saved_note_v1"; // the note text that was last saved to cards
 
@@ -87,21 +88,26 @@ function chunkArray<T>(arr: T[], size: number): T[][] {
 }
 
 // ── Sub-components ──────────────────────────────────────────
-function CopyBtn({ text, dark }: { text: string; dark?: boolean }) {
-  const [copied, setCopied] = useState(false);
+function CopyBtn({ text, dark, onCopy }: { text: string; dark?: boolean; onCopy?: () => void }) {
+  const [flash, setFlash] = useState(false);
   return (
     <button
-      onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1400); }}
+      onClick={() => {
+        navigator.clipboard.writeText(text);
+        setFlash(true);
+        setTimeout(() => setFlash(false), 800);
+        onCopy?.();
+      }}
       className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-all ${
-        copied
+        flash
           ? "bg-emerald-500 text-white"
           : dark
             ? "bg-white/10 hover:bg-white/20 text-white/70"
             : "bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-300"
       }`}
     >
-      {copied ? <Check size={10} strokeWidth={3} /> : <Copy size={10} />}
-      {copied ? "Copied" : "Copy"}
+      {flash ? <Check size={10} strokeWidth={3} /> : <Copy size={10} />}
+      {flash ? "Copied" : "Copy"}
     </button>
   );
 }
@@ -183,6 +189,9 @@ export default function AllMail() {
   const [doneIds, setDoneIds] = useState<Set<string>>(() => {
     try { return new Set(JSON.parse(localStorage.getItem(LS_DONE) ?? "[]")); } catch { return new Set(); }
   });
+  const [copiedIds, setCopiedIds] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem(LS_COPIED) ?? "[]")); } catch { return new Set(); }
+  });
 
   // dueDates: Record<cardId, "YYYY-MM-DD">
   const [dueDates, setDueDates] = useState<Record<string, string>>(() => {
@@ -210,11 +219,12 @@ export default function AllMail() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uploadRef   = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { localStorage.setItem(LS_NOTE,       note); },                           [note]);
-  useEffect(() => { localStorage.setItem(LS_SAVED_NOTE, savedNote); },                      [savedNote]);
-  useEffect(() => { localStorage.setItem(LS_CARDS,      JSON.stringify(cards)); },          [cards]);
-  useEffect(() => { localStorage.setItem(LS_DONE,       JSON.stringify([...doneIds])); },   [doneIds]);
-  useEffect(() => { localStorage.setItem(LS_DUEDATES,   JSON.stringify(dueDates)); },       [dueDates]);
+  useEffect(() => { localStorage.setItem(LS_NOTE,       note); },                              [note]);
+  useEffect(() => { localStorage.setItem(LS_SAVED_NOTE, savedNote); },                        [savedNote]);
+  useEffect(() => { localStorage.setItem(LS_CARDS,      JSON.stringify(cards)); },            [cards]);
+  useEffect(() => { localStorage.setItem(LS_DONE,       JSON.stringify([...doneIds])); },     [doneIds]);
+  useEffect(() => { localStorage.setItem(LS_COPIED,     JSON.stringify([...copiedIds])); },   [copiedIds]);
+  useEffect(() => { localStorage.setItem(LS_DUEDATES,   JSON.stringify(dueDates)); },         [dueDates]);
 
   // note typing only saves text — does NOT update cards
   const handleNoteChange = (val: string) => { setNote(val); };
@@ -233,6 +243,8 @@ export default function AllMail() {
   const hasUnsaved = note.trim() !== savedNote.trim();
 
   const clearNote    = () => { setNote(""); setSavedNote(""); setConfirmClear(false); };
+  const markCopied   = (id: string) => setCopiedIds((prev) => new Set([...prev, id]));
+  const unmarkCopied = (id: string) => setCopiedIds((prev) => { const n = new Set(prev); n.delete(id); return n; });
   const removeCard   = (id: string) => setCards((prev) => prev.filter((c) => c.id !== id));
   const toggleDone   = (id: string) =>
     setDoneIds((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -585,14 +597,19 @@ export default function AllMail() {
                         const daysLeft  = isoVal ? daysLeftFromISO(isoVal) : null;
                         const dueLabel  = isoVal ? formatISO(isoVal) : null;
 
+                        const isCopied = copiedIds.has(card.id);
                         return (
                           <div key={card.id}
+                            onDoubleClick={() => isCopied ? unmarkCopied(card.id) : undefined}
+                            title={isCopied ? "Double-click to reset" : undefined}
                             className={`rounded-xl border flex flex-col gap-0 transition-all shadow-sm overflow-hidden ${
                               inactive
                                 ? "bg-gray-950 border-gray-800"
-                                : done
-                                  ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800"
-                                  : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow"
+                                : isCopied
+                                  ? "bg-emerald-100 dark:bg-emerald-900/40 border-emerald-400 dark:border-emerald-600 ring-2 ring-emerald-400/50"
+                                  : done
+                                    ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800"
+                                    : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow"
                             }`}
                           >
                             {inactive && (
@@ -646,7 +663,7 @@ export default function AllMail() {
                               </p>
 
                               <div className={`flex items-center gap-1.5 pt-2 border-t ${inactive ? "border-white/10" : "border-slate-100 dark:border-slate-700"}`}>
-                                <CopyBtn text={card.text} dark={inactive} />
+                                <CopyBtn text={card.text} dark={inactive} onCopy={!inactive ? () => markCopied(card.id) : undefined} />
                                 <DaysInput
                                   value={isoVal}
                                   onChange={(iso) => setDueDate(card.id, iso)}
