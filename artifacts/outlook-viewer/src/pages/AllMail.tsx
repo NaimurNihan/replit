@@ -205,7 +205,7 @@ export default function AllMail() {
                   </div>
 
                   {/* Mail text */}
-                  <p className={`text-sm font-mono font-semibold break-all leading-relaxed flex-1 ${done ? "text-emerald-700 line-through opacity-60" : "text-slate-800"}`}>
+                  <p className={`text-xs font-mono break-all leading-relaxed flex-1 ${done ? "text-emerald-700 line-through opacity-60" : "text-slate-800"}`}>
                     {card.text}
                   </p>
 
