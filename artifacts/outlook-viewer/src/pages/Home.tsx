@@ -254,10 +254,11 @@ export default function Home() {
                 href="https://dongvanfb.net/read_mail_box/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-500 hover:bg-red-600 text-white text-[11px] font-semibold transition-colors"
+                className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-red-500 hover:bg-red-600 text-white text-[11px] font-semibold transition-colors truncate max-w-[260px]"
+                title="https://dongvanfb.net/read_mail_box/"
               >
-                <ExternalLink size={10} />
-                Read Mail
+                <ExternalLink size={10} className="shrink-0" />
+                https://dongvanfb.net/read_mail_box/
               </a>
             </div>
             <p className="text-xs text-slate-400 dark:text-slate-500">
