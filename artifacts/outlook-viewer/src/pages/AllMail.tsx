@@ -180,7 +180,36 @@ export default function AllMail() {
   const groups    = chunkArray(cards, GROUP_SIZE);
 
   return (
-    <div className="h-full overflow-y-auto bg-slate-50">
+    <div className="h-full flex flex-col bg-slate-50">
+
+      {/* ── Top header bar (outside everything) ──────────── */}
+      <header className="shrink-0 bg-white border-b border-slate-200 px-5 py-2.5 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold text-slate-700">All Mail</span>
+          {total > 0 && <span className="text-[11px] bg-slate-100 text-slate-500 font-semibold px-2 py-0.5 rounded-full">{total} cards</span>}
+          {doneCount > 0 && <span className="text-[11px] bg-emerald-100 text-emerald-600 font-semibold px-2 py-0.5 rounded-full">✓ {doneCount} done</span>}
+        </div>
+        <div className="flex items-center gap-2">
+          {/* Upload cards */}
+          <button
+            onClick={() => uploadRef.current?.click()}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+          >
+            <Upload size={12} /> Upload
+          </button>
+          <input ref={uploadRef} type="file" accept=".txt,.csv" className="hidden" onChange={handleUploadFile} />
+          {/* Download cards */}
+          <button
+            onClick={handleDownload}
+            disabled={total === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-slate-700 text-white rounded-lg hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shadow-sm"
+          >
+            <Download size={12} /> Download
+          </button>
+        </div>
+      </header>
+
+      <div className="flex-1 overflow-y-auto">
       <div className="max-w-4xl mx-auto px-4 py-5 space-y-4">
 
         {/* ── Note card ──────────────────────────────────── */}
@@ -193,17 +222,6 @@ export default function AllMail() {
             </div>
             <div className="flex items-center gap-1.5">
               {doneCount > 0 && <span className="text-[11px] bg-emerald-100 text-emerald-600 font-semibold px-2 py-0.5 rounded-full">✓ {doneCount} done</span>}
-              <button onClick={(e) => { e.stopPropagation(); uploadRef.current?.click(); }}
-                className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold bg-blue-50 border border-blue-200 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">
-                <Upload size={11} /> Upload
-              </button>
-              <input ref={uploadRef} type="file" accept=".txt,.csv" className="hidden" onChange={handleUploadFile} />
-              {total > 0 && (
-                <button onClick={(e) => { e.stopPropagation(); handleDownload(); }}
-                  className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold bg-slate-100 border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors">
-                  <Download size={11} /> Download
-                </button>
-              )}
               {note && (
                 confirmClear ? (
                   <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -380,6 +398,7 @@ export default function AllMail() {
             <p className="text-xs text-slate-300 mt-1">Or upload a .txt file · Every 6 cards = 1 group · Type days to schedule</p>
           </div>
         )}
+      </div>
       </div>
     </div>
   );
