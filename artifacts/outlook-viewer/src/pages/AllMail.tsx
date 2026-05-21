@@ -449,14 +449,14 @@ export default function AllMail() {
                   {note && (
                     confirmClear ? (
                       <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                        <span className="text-[11px] text-red-500 font-medium">Clear note?</span>
+                        <span className="text-[11px] text-red-500 font-medium">Clear note only?</span>
                         <button onClick={clearNote} className="px-2 py-0.5 text-[11px] font-semibold bg-red-500 text-white rounded-lg">Yes</button>
-                        <button onClick={() => setConfirmClear(false)} className="px-2 py-0.5 text-[11px] font-semibold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg">No</button>
+                        <button onClick={(e) => { e.stopPropagation(); setConfirmClear(false); }} className="px-2 py-0.5 text-[11px] font-semibold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg">No</button>
                       </div>
                     ) : (
                       <button onClick={(e) => { e.stopPropagation(); setConfirmClear(true); }}
-                        className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-500 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors">
-                        <Trash2 size={11} /> Clear All
+                        className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold bg-amber-100 dark:bg-amber-900/40 border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 rounded-lg hover:bg-amber-200 dark:hover:bg-amber-900/60 transition-colors">
+                        <Trash2 size={11} /> Clear Note
                       </button>
                     )
                   )}
@@ -478,20 +478,45 @@ export default function AllMail() {
               )}
             </div>
 
-            {/* ── Stats bar ──────────────────────────────── */}
-            {total > 0 && (
-              <div className="flex items-center justify-between px-1">
-                <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">
-                  {total} mail{total !== 1 ? "s" : ""} · {groups.length} group{groups.length !== 1 ? "s" : ""}
-                  {doneCount > 0 && <span className="ml-2 text-emerald-500 font-semibold">· {doneCount} done · {total - doneCount} remaining</span>}
-                </p>
-                {doneCount > 0 && (
-                  <div className="flex-1 mx-4 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                    <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: `${Math.round((doneCount / total) * 100)}%` }} />
+            {/* ── Info card ──────────────────────────────── */}
+            {total > 0 && (() => {
+              const scheduledCount = cards.filter(c => !!dueDates[c.id]).length;
+              const overdueCount   = cards.filter(c => { const iso = dueDates[c.id]; return iso ? daysLeftFromISO(iso) <= 0 : false; }).length;
+              const remaining      = total - doneCount;
+              const pct            = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+              return (
+                <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm px-4 py-3">
+                  <div className="flex items-center justify-between mb-2.5">
+                    <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Overview</span>
+                    <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500">{groups.length} group{groups.length !== 1 ? "s" : ""}</span>
                   </div>
-                )}
-              </div>
-            )}
+                  <div className="grid grid-cols-4 gap-2 mb-3">
+                    <div className="flex flex-col items-center bg-slate-50 dark:bg-slate-700/50 rounded-xl py-2 px-1">
+                      <span className="text-base font-extrabold text-slate-700 dark:text-slate-200 leading-none">{total}</span>
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 font-medium">Total</span>
+                    </div>
+                    <div className="flex flex-col items-center bg-emerald-50 dark:bg-emerald-900/20 rounded-xl py-2 px-1">
+                      <span className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 leading-none">{doneCount}</span>
+                      <span className="text-[10px] text-emerald-500 dark:text-emerald-500 mt-0.5 font-medium">Done</span>
+                    </div>
+                    <div className="flex flex-col items-center bg-blue-50 dark:bg-blue-900/20 rounded-xl py-2 px-1">
+                      <span className="text-base font-extrabold text-blue-600 dark:text-blue-400 leading-none">{remaining}</span>
+                      <span className="text-[10px] text-blue-400 dark:text-blue-500 mt-0.5 font-medium">Left</span>
+                    </div>
+                    <div className={`flex flex-col items-center rounded-xl py-2 px-1 ${overdueCount > 0 ? "bg-red-50 dark:bg-red-900/20" : "bg-orange-50 dark:bg-orange-900/10"}`}>
+                      <span className={`text-base font-extrabold leading-none ${overdueCount > 0 ? "text-red-600 dark:text-red-400" : "text-orange-500 dark:text-orange-400"}`}>{overdueCount > 0 ? overdueCount : scheduledCount}</span>
+                      <span className={`text-[10px] mt-0.5 font-medium ${overdueCount > 0 ? "text-red-400 dark:text-red-500" : "text-orange-400 dark:text-orange-500"}`}>{overdueCount > 0 ? "Overdue" : "Sched."}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                      <div className="h-full bg-emerald-400 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 w-8 text-right">{pct}%</span>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* ── Groups ─────────────────────────────────── */}
             {groups.map((group, gi) => {
