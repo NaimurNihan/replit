@@ -166,7 +166,7 @@ export default function AllMail() {
   const doneCount = [...doneIds].filter((id) => cards.some((c) => c.id === id)).length;
   const groups    = chunkArray(cards, GROUP_SIZE);
 
-  // Top 20 closest due cards
+  // Top 20 closest due cards (includes overdue/0-day)
   const closestCards = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -174,14 +174,19 @@ export default function AllMail() {
       .map((card, idx) => {
         const dayVal = days[card.id] ?? "";
         const n = parseInt(dayVal);
-        if (!dayVal || isNaN(n) || n <= 0) return null;
+        if (!dayVal || isNaN(n)) return null;
         const due = new Date(today);
         due.setDate(today.getDate() + n);
         const daysLeft = Math.round((due.getTime() - today.getTime()) / 86400000);
         return { card, globalIdx: idx, daysLeft, dueDate: due };
       })
       .filter((x): x is { card: MailCard; globalIdx: number; daysLeft: number; dueDate: Date } => x !== null)
-      .sort((a, b) => a.daysLeft - b.daysLeft)
+      .sort((a, b) => {
+        // overdue (<=0) first, then ascending by daysLeft
+        if (a.daysLeft <= 0 && b.daysLeft > 0) return -1;
+        if (b.daysLeft <= 0 && a.daysLeft > 0) return 1;
+        return a.daysLeft - b.daysLeft;
+      })
       .slice(0, 20);
     return result;
   }, [cards, days]);
@@ -238,49 +243,86 @@ export default function AllMail() {
               </div>
             ) : (
               <div className="p-2 space-y-1.5">
-                {closestCards.map(({ card, globalIdx, daysLeft, dueDate }, rank) => {
-                  const urgency = daysLeft <= 3 ? "red" : daysLeft <= 7 ? "orange" : daysLeft <= 14 ? "yellow" : "slate";
-                  const dueDateStr = dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-                  const bgClass =
-                    urgency === "red"    ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800" :
-                    urgency === "orange" ? "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800" :
-                    urgency === "yellow" ? "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800" :
-                                          "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700";
-                  const numClass =
-                    urgency === "red"    ? "bg-red-200 dark:bg-red-900/60 text-red-700 dark:text-red-300" :
-                    urgency === "orange" ? "bg-orange-200 dark:bg-orange-900/60 text-orange-700 dark:text-orange-300" :
-                    urgency === "yellow" ? "bg-yellow-200 dark:bg-yellow-900/60 text-yellow-700 dark:text-yellow-300" :
-                                          "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400";
-                  const dayClass =
-                    urgency === "red"    ? "text-red-600 dark:text-red-400" :
-                    urgency === "orange" ? "text-orange-600 dark:text-orange-400" :
-                    urgency === "yellow" ? "text-yellow-600 dark:text-yellow-400" :
-                                          "text-slate-500 dark:text-slate-400";
-                  return (
-                    <div key={card.id} className={`rounded-lg border px-2.5 py-2 ${bgClass}`}>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${numClass}`}>
-                          #{String(globalIdx + 1).padStart(3, "0")}
-                        </span>
-                        <span className={`text-[10px] font-bold ${dayClass}`}>
-                          {daysLeft === 0 ? "Today!" : daysLeft === 1 ? "1 day" : `${daysLeft}d`}
-                        </span>
-                      </div>
-                      <p className="text-[10px] font-mono text-slate-600 dark:text-slate-400 truncate leading-relaxed">
-                        {card.text}
-                      </p>
-                      <div className="flex items-center gap-1 mt-1">
-                        <Calendar size={9} className="text-slate-400 dark:text-slate-500 shrink-0" />
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">{dueDateStr}</span>
-                        {rank < 3 && (
-                          <span className="ml-auto text-[9px] font-bold text-white bg-red-500 px-1 py-0.5 rounded">
-                            #{rank + 1}
+                {(() => {
+                  const overdueItems  = closestCards.filter(x => x.daysLeft <= 0);
+                  const upcomingItems = closestCards.filter(x => x.daysLeft > 0);
+                  const renderCard = (item: typeof closestCards[0], rank: number, isOverdue: boolean, upcomingRank: number) => {
+                    const { card, globalIdx, daysLeft, dueDate } = item;
+                    const dueDateStr = dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                    // overdue → red; top3 upcoming → green; rest → urgency colors
+                    const isTop3 = !isOverdue && upcomingRank < 3;
+                    const urgency = isOverdue ? "over"
+                      : isTop3 ? "green"
+                      : daysLeft <= 7 ? "orange"
+                      : daysLeft <= 14 ? "yellow"
+                      : "slate";
+                    const bgClass =
+                      urgency === "over"   ? "bg-red-50 dark:bg-red-950/40 border-red-300 dark:border-red-700" :
+                      urgency === "green"  ? "bg-emerald-50 dark:bg-emerald-900/25 border-emerald-300 dark:border-emerald-700" :
+                      urgency === "orange" ? "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800" :
+                      urgency === "yellow" ? "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800" :
+                                            "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700";
+                    const numClass =
+                      urgency === "over"   ? "bg-red-200 dark:bg-red-900/60 text-red-700 dark:text-red-300" :
+                      urgency === "green"  ? "bg-emerald-200 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300" :
+                      urgency === "orange" ? "bg-orange-200 dark:bg-orange-900/60 text-orange-700 dark:text-orange-300" :
+                      urgency === "yellow" ? "bg-yellow-200 dark:bg-yellow-900/60 text-yellow-700 dark:text-yellow-300" :
+                                            "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400";
+                    const dayClass =
+                      urgency === "over"   ? "text-red-600 dark:text-red-400 font-extrabold" :
+                      urgency === "green"  ? "text-emerald-600 dark:text-emerald-400 font-bold" :
+                      urgency === "orange" ? "text-orange-600 dark:text-orange-400 font-bold" :
+                      urgency === "yellow" ? "text-yellow-600 dark:text-yellow-400 font-bold" :
+                                            "text-slate-500 dark:text-slate-400";
+                    return (
+                      <div key={card.id} className={`rounded-lg border px-2.5 py-2 ${bgClass}`}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${numClass}`}>
+                            #{String(globalIdx + 1).padStart(3, "0")}
                           </span>
-                        )}
+                          {isOverdue ? (
+                            <span className="text-[9px] font-extrabold text-white bg-red-500 dark:bg-red-600 px-1.5 py-0.5 rounded animate-pulse">
+                              OVER DATE
+                            </span>
+                          ) : (
+                            <span className={`text-[10px] ${dayClass}`}>
+                              {daysLeft === 1 ? "1 day" : `${daysLeft}d`}
+                            </span>
+                          )}
+                        </div>
+                        <p className={`text-[10px] font-mono truncate leading-relaxed ${isOverdue ? "text-red-700 dark:text-red-300" : "text-slate-600 dark:text-slate-400"}`}>
+                          {card.text}
+                        </p>
+                        <div className="flex items-center gap-1 mt-1">
+                          <Calendar size={9} className={`shrink-0 ${isOverdue ? "text-red-400" : "text-slate-400 dark:text-slate-500"}`} />
+                          <span className={`text-[10px] font-medium ${isOverdue ? "text-red-500 dark:text-red-400 line-through" : "text-slate-400 dark:text-slate-500"}`}>{dueDateStr}</span>
+                          {isTop3 && (
+                            <span className="ml-auto text-[9px] font-bold text-white bg-emerald-500 px-1 py-0.5 rounded">
+                              #{upcomingRank + 1}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    );
+                  };
+                  return (
+                    <>
+                      {overdueItems.length > 0 && (
+                        <>
+                          <p className="text-[9px] font-extrabold text-red-500 uppercase tracking-widest px-1">⚠ Overdue</p>
+                          {overdueItems.map((item, i) => renderCard(item, i, true, -1))}
+                          {upcomingItems.length > 0 && <div className="border-t border-slate-200 dark:border-slate-700 my-1" />}
+                        </>
+                      )}
+                      {upcomingItems.length > 0 && (
+                        <>
+                          {overdueItems.length > 0 && <p className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest px-1">✦ Upcoming</p>}
+                          {upcomingItems.map((item, i) => renderCard(item, i, false, i))}
+                        </>
+                      )}
+                    </>
                   );
-                })}
+                })()}
               </div>
             )}
           </div>
