@@ -1,6 +1,37 @@
-import { useState, useMemo, useRef, useCallback } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { outlookData as defaultData, OutlookEntry } from "@/data/outlookData";
 import { Copy, Check, ChevronRight, Mail, Search, X, Upload, Download } from "lucide-react";
+
+const LS_ENTRIES = "outlook_entries_v1";
+const LS_DONE = "outlook_done_v1";
+const LS_SELECTED = "outlook_selected_id_v1";
+
+function loadEntries(): OutlookEntry[] {
+  try {
+    const raw = localStorage.getItem(LS_ENTRIES);
+    if (raw) return JSON.parse(raw) as OutlookEntry[];
+  } catch {}
+  return defaultData;
+}
+
+function loadDoneIds(): Set<number> {
+  try {
+    const raw = localStorage.getItem(LS_DONE);
+    if (raw) return new Set(JSON.parse(raw) as number[]);
+  } catch {}
+  return new Set();
+}
+
+function loadSelectedId(entries: OutlookEntry[]): OutlookEntry | null {
+  try {
+    const raw = localStorage.getItem(LS_SELECTED);
+    if (raw) {
+      const id = JSON.parse(raw) as number;
+      return entries.find((e) => e.id === id) ?? entries[0] ?? null;
+    }
+  } catch {}
+  return entries[0] ?? null;
+}
 
 function CopyButton({ text, label }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false);
@@ -48,12 +79,9 @@ function EntryRow({
           : "hover:bg-slate-50 border-l-2 border-l-transparent"
       }`}
     >
-      {/* Number */}
       <span className={`text-[10px] font-mono font-bold shrink-0 w-7 text-right ${done ? "text-emerald-500" : selected ? "text-blue-400" : "text-slate-400"}`}>
         {num}
       </span>
-
-      {/* Tick button */}
       <button
         onClick={onToggleDone}
         title={done ? "Mark as pending" : "Mark as done"}
@@ -65,14 +93,11 @@ function EntryRow({
       >
         <Check size={10} strokeWidth={3} />
       </button>
-
-      {/* Email */}
       <div className="flex-1 min-w-0">
         <p className={`text-xs font-mono truncate ${done ? "text-emerald-700 line-through opacity-70" : selected ? "text-blue-700 font-semibold" : "text-slate-700"}`}>
           {entry.email}
         </p>
       </div>
-
       <ChevronRight size={12} className={`shrink-0 ${selected ? "text-blue-400" : "text-slate-300 group-hover:text-slate-400"}`} />
     </div>
   );
@@ -116,12 +141,27 @@ function parseXlsxData(buffer: ArrayBuffer): Promise<OutlookEntry[]> {
 }
 
 export default function Home() {
-  const [entries, setEntries] = useState<OutlookEntry[]>(defaultData);
-  const [selected, setSelected] = useState<OutlookEntry | null>(defaultData[0]);
+  const [entries, setEntries] = useState<OutlookEntry[]>(() => loadEntries());
+  const [selected, setSelected] = useState<OutlookEntry | null>(() => loadSelectedId(loadEntries()));
   const [search, setSearch] = useState("");
-  const [doneIds, setDoneIds] = useState<Set<number>>(new Set());
+  const [doneIds, setDoneIds] = useState<Set<number>>(() => loadDoneIds());
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /* Persist entries */
+  useEffect(() => {
+    localStorage.setItem(LS_ENTRIES, JSON.stringify(entries));
+  }, [entries]);
+
+  /* Persist done ids */
+  useEffect(() => {
+    localStorage.setItem(LS_DONE, JSON.stringify([...doneIds]));
+  }, [doneIds]);
+
+  /* Persist selected */
+  useEffect(() => {
+    if (selected) localStorage.setItem(LS_SELECTED, JSON.stringify(selected.id));
+  }, [selected]);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return entries;
@@ -133,16 +173,16 @@ export default function Home() {
 
   const copyAll = () => {
     if (!selected) return;
-    const text = `${selected.email}|${selected.password}|${selected.cookie}|${selected.uuid}`;
-    navigator.clipboard.writeText(text);
+    navigator.clipboard.writeText(
+      `${selected.email}|${selected.password}|${selected.cookie}|${selected.uuid}`
+    );
   };
 
   const toggleDone = useCallback((e: React.MouseEvent, id: number) => {
     e.stopPropagation();
     setDoneIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   }, []);
@@ -154,10 +194,7 @@ export default function Home() {
     try {
       const buffer = await file.arrayBuffer();
       const parsed = await parseXlsxData(buffer);
-      if (parsed.length === 0) {
-        alert("No valid email entries found in this file.");
-        return;
-      }
+      if (parsed.length === 0) { alert("No valid email entries found in this file."); return; }
       setEntries(parsed);
       setSelected(parsed[0]);
       setDoneIds(new Set());
@@ -171,9 +208,7 @@ export default function Home() {
   };
 
   const handleDownload = () => {
-    const lines = entries.map(
-      (e) => `${e.email}|${e.password}|${e.cookie}|${e.uuid}`
-    );
+    const lines = entries.map((e) => `${e.email}|${e.password}|${e.cookie}|${e.uuid}`);
     const blob = new Blob([lines.join("\n")], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -181,6 +216,17 @@ export default function Home() {
     a.download = "outlook_accounts.txt";
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleClearStorage = () => {
+    if (!confirm("Reset all data and done marks?")) return;
+    localStorage.removeItem(LS_ENTRIES);
+    localStorage.removeItem(LS_DONE);
+    localStorage.removeItem(LS_SELECTED);
+    setEntries(defaultData);
+    setSelected(defaultData[0]);
+    setDoneIds(new Set());
+    setSearch("");
   };
 
   return (
@@ -195,37 +241,34 @@ export default function Home() {
             <h1 className="text-sm font-bold text-slate-900">Outlook Separator</h1>
             <p className="text-xs text-slate-400">
               {entries.length} accounts
-              {doneCount > 0 && (
-                <span className="ml-1.5 text-emerald-500 font-semibold">· {doneCount} done</span>
-              )}
+              {doneCount > 0 && <span className="ml-1.5 text-emerald-500 font-semibold">· {doneCount} done</span>}
             </p>
           </div>
         </div>
 
-        {/* Right buttons */}
         <div className="ml-auto flex items-center gap-2">
+          {/* Reset */}
+          <button
+            onClick={handleClearStorage}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-400 hover:text-red-500 hover:border-red-200 transition-colors"
+            title="Reset to default data"
+          >
+            <X size={11} /> Reset
+          </button>
+
           {/* Upload */}
           <label
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium cursor-pointer transition-colors ${uploading ? "bg-slate-100 text-slate-400" : "bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300"}`}
-            title="Upload new .xlsx file"
           >
             <Upload size={13} />
             {uploading ? "Loading..." : "Upload"}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx"
-              className="hidden"
-              onChange={handleUpload}
-              disabled={uploading}
-            />
+            <input ref={fileInputRef} type="file" accept=".xlsx" className="hidden" onChange={handleUpload} disabled={uploading} />
           </label>
 
           {/* Download */}
           <button
             onClick={handleDownload}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg transition-colors"
-            title="Download all as .txt"
           >
             <Download size={13} />
             Download All
@@ -236,7 +279,6 @@ export default function Home() {
       <div className="flex flex-1 overflow-hidden h-[calc(100vh-53px)]">
         {/* LEFT PANEL */}
         <div className="w-72 shrink-0 bg-white border-r border-slate-200 flex flex-col overflow-hidden">
-          {/* Search */}
           <div className="p-2 border-b border-slate-100">
             <div className="flex items-center gap-2 bg-slate-100 rounded-lg px-2.5 py-1.5">
               <Search size={12} className="text-slate-400 shrink-0" />
@@ -248,24 +290,14 @@ export default function Home() {
                 className="flex-1 text-xs bg-transparent outline-none text-slate-700 placeholder:text-slate-400"
               />
               {search && (
-                <button onClick={() => setSearch("")} className="text-slate-400 hover:text-slate-600">
-                  <X size={11} />
-                </button>
+                <button onClick={() => setSearch("")} className="text-slate-400 hover:text-slate-600"><X size={11} /></button>
               )}
             </div>
           </div>
-          {/* Count bar */}
           <div className="px-3 py-1.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-            <span className="text-[10px] text-slate-400 font-medium">
-              {filtered.length} of {entries.length}
-            </span>
-            {doneCount > 0 && (
-              <span className="text-[10px] text-emerald-500 font-semibold">
-                ✓ {doneCount} done
-              </span>
-            )}
+            <span className="text-[10px] text-slate-400 font-medium">{filtered.length} of {entries.length}</span>
+            {doneCount > 0 && <span className="text-[10px] text-emerald-500 font-semibold">✓ {doneCount} done</span>}
           </div>
-          {/* List */}
           <div className="flex-1 overflow-y-auto">
             {filtered.length === 0 ? (
               <div className="text-center py-10 text-slate-400 text-xs">No results</div>
@@ -294,7 +326,6 @@ export default function Home() {
             </div>
           ) : (
             <div className="max-w-2xl mx-auto">
-              {/* Detail header */}
               <div className={`border rounded-xl p-4 mb-4 flex items-center justify-between ${doneIds.has(selected.id) ? "bg-emerald-50 border-emerald-200" : "bg-white border-slate-200"}`}>
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${doneIds.has(selected.id) ? "bg-emerald-100 text-emerald-600" : "bg-blue-100 text-blue-600"}`}>
@@ -304,7 +335,7 @@ export default function Home() {
                     <p className="text-sm font-semibold text-slate-900 font-mono">{selected.email}</p>
                     <div className="flex items-center gap-2">
                       <p className="text-xs text-slate-400">
-                        Account #{String(entries.findIndex(e => e.id === selected.id) + 1).padStart(3, "0")}
+                        Account #{String(entries.findIndex((e) => e.id === selected.id) + 1).padStart(3, "0")}
                       </p>
                       {doneIds.has(selected.id) && (
                         <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded-full">DONE</span>
@@ -313,12 +344,10 @@ export default function Home() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {/* Toggle done from right panel */}
                   <button
-                    onClick={() => setDoneIds(prev => {
+                    onClick={() => setDoneIds((prev) => {
                       const next = new Set(prev);
-                      if (next.has(selected.id)) next.delete(selected.id);
-                      else next.add(selected.id);
+                      if (next.has(selected.id)) next.delete(selected.id); else next.add(selected.id);
                       return next;
                     })}
                     className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
@@ -340,14 +369,10 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Raw line */}
               <div className="bg-slate-900 rounded-xl p-4 mb-4 border border-slate-700">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs text-slate-400 font-medium">Raw Format</span>
-                  <CopyButton
-                    text={`${selected.email}|${selected.password}|${selected.cookie}|${selected.uuid}`}
-                    label="raw line"
-                  />
+                  <CopyButton text={`${selected.email}|${selected.password}|${selected.cookie}|${selected.uuid}`} label="raw line" />
                 </div>
                 <p className="text-xs font-mono break-all leading-relaxed">
                   <span className="text-blue-300">{selected.email}</span>
@@ -360,7 +385,6 @@ export default function Home() {
                 </p>
               </div>
 
-              {/* Fields */}
               <div className="space-y-3">
                 <FieldRow label="Email" value={selected.email} />
                 <FieldRow label="Password" value={selected.password} />
