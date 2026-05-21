@@ -136,15 +136,36 @@ export default function AllMail() {
 
         {/* Note Card */}
         <div className="bg-amber-50 border border-amber-200 rounded-2xl shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 cursor-pointer select-none" onClick={() => setNoteOpen((v) => !v)}>
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between px-4 py-3 select-none">
+            <div className="flex items-center gap-2 cursor-pointer flex-1" onClick={() => setNoteOpen((v) => !v)}>
               <StickyNote size={15} className="text-amber-500" />
               <span className="text-sm font-bold text-amber-800">Note — Paste your mails here</span>
               {total > 0 && <span className="text-[11px] bg-amber-200 text-amber-700 font-semibold px-2 py-0.5 rounded-full">{total} mails</span>}
             </div>
             <div className="flex items-center gap-2">
               {doneCount > 0 && <span className="text-[11px] bg-emerald-100 text-emerald-600 font-semibold px-2 py-0.5 rounded-full">✓ {doneCount} done</span>}
-              {noteOpen ? <ChevronUp size={14} className="text-amber-400" /> : <ChevronDown size={14} className="text-amber-400" />}
+
+              {/* Clear All button */}
+              {total > 0 && (
+                confirmClear ? (
+                  <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                    <span className="text-[11px] text-red-500 font-medium">Clear all?</span>
+                    <button onClick={clearAll} className="px-2 py-0.5 text-[11px] font-semibold bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">Yes</button>
+                    <button onClick={() => setConfirmClear(false)} className="px-2 py-0.5 text-[11px] font-semibold bg-slate-200 text-slate-600 rounded-lg hover:bg-slate-300 transition-colors">No</button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setConfirmClear(true); }}
+                    className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold bg-red-50 border border-red-200 text-red-500 rounded-lg hover:bg-red-100 hover:border-red-300 transition-colors"
+                  >
+                    <Trash2 size={11} /> Clear All
+                  </button>
+                )
+              )}
+
+              <div className="cursor-pointer" onClick={() => setNoteOpen((v) => !v)}>
+                {noteOpen ? <ChevronUp size={14} className="text-amber-400" /> : <ChevronDown size={14} className="text-amber-400" />}
+              </div>
             </div>
           </div>
 
