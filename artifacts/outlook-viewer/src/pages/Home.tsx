@@ -146,6 +146,7 @@ export default function Home() {
   const [search, setSearch] = useState("");
   const [doneIds, setDoneIds] = useState<Set<number>>(() => loadDoneIds());
   const [uploading, setUploading] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   /* Persist entries */
@@ -219,7 +220,6 @@ export default function Home() {
   };
 
   const handleClearStorage = () => {
-    if (!confirm("Reset all data and done marks?")) return;
     localStorage.removeItem(LS_ENTRIES);
     localStorage.removeItem(LS_DONE);
     localStorage.removeItem(LS_SELECTED);
@@ -227,6 +227,7 @@ export default function Home() {
     setSelected(defaultData[0]);
     setDoneIds(new Set());
     setSearch("");
+    setConfirmReset(false);
   };
 
   return (
@@ -248,13 +249,20 @@ export default function Home() {
 
         <div className="ml-auto flex items-center gap-2">
           {/* Reset */}
-          <button
-            onClick={handleClearStorage}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-400 hover:text-red-500 hover:border-red-200 transition-colors"
-            title="Reset to default data"
-          >
-            <X size={11} /> Reset
-          </button>
+          {confirmReset ? (
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-red-500 font-medium">Reset?</span>
+              <button onClick={handleClearStorage} className="px-2 py-1 text-[11px] font-semibold bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">Yes</button>
+              <button onClick={() => setConfirmReset(false)} className="px-2 py-1 text-[11px] font-semibold bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors">No</button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmReset(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-400 hover:text-red-500 hover:border-red-200 transition-colors"
+            >
+              <X size={11} /> Reset
+            </button>
+          )}
 
           {/* Upload */}
           <label

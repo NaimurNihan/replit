@@ -108,6 +108,7 @@ export default function AllMail() {
     catch { return {}; }
   });
   const [noteOpen, setNoteOpen] = useState(true);
+  const [confirmClear, setConfirmClear] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => { localStorage.setItem(LS_NOTE,  note); }, [note]);
@@ -125,8 +126,8 @@ export default function AllMail() {
     setDates((prev) => ({ ...prev, [id]: val }));
 
   const clearAll = () => {
-    if (!confirm("Clear all mails and marks?")) return;
     setNote(""); setDoneIds(new Set()); setDates({});
+    setConfirmClear(false);
   };
 
   return (
@@ -159,9 +160,17 @@ export default function AllMail() {
               <div className="flex items-center justify-between mt-2">
                 <p className="text-[11px] text-amber-500">Each line = 1 mail card below</p>
                 {note && (
-                  <button onClick={clearAll} className="flex items-center gap-1 text-[11px] text-red-400 hover:text-red-600 transition-colors">
-                    <Trash2 size={11} /> Clear all
-                  </button>
+                  confirmClear ? (
+                    <div className="flex items-center gap-1">
+                      <span className="text-[11px] text-red-500 font-medium">Clear all?</span>
+                      <button onClick={clearAll} className="px-2 py-0.5 text-[11px] font-semibold bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">Yes</button>
+                      <button onClick={() => setConfirmClear(false)} className="px-2 py-0.5 text-[11px] font-semibold bg-slate-200 text-slate-600 rounded-lg hover:bg-slate-300 transition-colors">No</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setConfirmClear(true)} className="flex items-center gap-1 text-[11px] text-red-400 hover:text-red-600 transition-colors">
+                      <Trash2 size={11} /> Clear all
+                    </button>
+                  )
                 )}
               </div>
             </div>
