@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { Copy, Check, StickyNote, Trash2, ChevronDown, ChevronUp, X, Download, Upload, Zap, Clock, Calendar } from "lucide-react";
+import { Copy, Check, StickyNote, Trash2, ChevronDown, ChevronUp, X, Download, Upload, Zap, Clock, Calendar, Eye, EyeOff } from "lucide-react";
 
 const LS_NOTE     = "allmail_note_v1";
 const LS_CARDS    = "allmail_cards_v2";
@@ -251,6 +251,16 @@ export default function AllMail() {
   const doneCount = [...doneIds].filter((id) => cards.some((c) => c.id === id)).length;
   const groups    = chunkArray(cards, GROUP_SIZE);
 
+  // all groups open = none in the collapsed set
+  const allExpanded = groups.length > 0 && collapsedGroups.size === 0;
+  const toggleAllGroups = () => {
+    if (allExpanded) {
+      setCollapsedGroups(new Set(groups.map((_, i) => i)));
+    } else {
+      setCollapsedGroups(new Set());
+    }
+  };
+
   // Top 20 sidebar cards — uses real calendar countdown
   const closestCards = useMemo(() => {
     return cards
@@ -280,6 +290,20 @@ export default function AllMail() {
           {doneCount > 0 && <span className="text-[11px] bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 font-semibold px-2 py-0.5 rounded-full">✓ {doneCount} done</span>}
         </div>
         <div className="flex items-center gap-2">
+          {total > 0 && (
+            <button
+              onClick={toggleAllGroups}
+              title={allExpanded ? "Collapse all groups" : "Expand all groups"}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors shadow-sm border ${
+                allExpanded
+                  ? "bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700"
+                  : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700"
+              }`}
+            >
+              {allExpanded ? <EyeOff size={12} /> : <Eye size={12} />}
+              {allExpanded ? "Hide All" : "Show All"}
+            </button>
+          )}
           <button onClick={() => uploadRef.current?.click()}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
             <Upload size={12} /> Upload
