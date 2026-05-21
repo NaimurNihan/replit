@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { outlookData as defaultData, OutlookEntry } from "@/data/outlookData";
-import { Copy, Check, ChevronRight, Mail, Search, X, Upload, Download } from "lucide-react";
+import { Copy, Check, ChevronRight, Mail, Search, X, Upload, Download, Trash2 } from "lucide-react";
 
 const LS_ENTRIES = "outlook_entries_v1";
 const LS_DONE = "outlook_done_v1";
@@ -147,6 +147,7 @@ export default function Home() {
   const [doneIds, setDoneIds] = useState<Set<number>>(() => loadDoneIds());
   const [uploading, setUploading] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmClearAll, setConfirmClearAll] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   /* Persist entries */
@@ -230,6 +231,17 @@ export default function Home() {
     setConfirmReset(false);
   };
 
+  const handleClearAll = () => {
+    localStorage.removeItem(LS_ENTRIES);
+    localStorage.removeItem(LS_DONE);
+    localStorage.removeItem(LS_SELECTED);
+    setEntries([]);
+    setSelected(null);
+    setDoneIds(new Set());
+    setSearch("");
+    setConfirmClearAll(false);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Header */}
@@ -248,6 +260,22 @@ export default function Home() {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
+          {/* Clear All */}
+          {confirmClearAll ? (
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-red-500 font-medium">Clear all?</span>
+              <button onClick={handleClearAll} className="px-2 py-1 text-[11px] font-semibold bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">Yes</button>
+              <button onClick={() => setConfirmClearAll(false)} className="px-2 py-1 text-[11px] font-semibold bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors">No</button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmClearAll(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-red-200 text-xs font-medium text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+            >
+              <Trash2 size={11} /> Clear All
+            </button>
+          )}
+
           {/* Reset */}
           {confirmReset ? (
             <div className="flex items-center gap-1">
