@@ -243,7 +243,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="h-full bg-slate-50 flex flex-col">
       {/* Header */}
       <header className="bg-white border-b border-slate-200 px-4 py-2.5 flex items-center gap-3 shrink-0">
         <div className="flex items-center gap-2">
@@ -312,7 +312,7 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden h-[calc(100vh-53px)]">
+      <div className="flex flex-1 overflow-hidden min-h-0">
         {/* LEFT PANEL */}
         <div className="w-72 shrink-0 bg-white border-r border-slate-200 flex flex-col overflow-hidden">
           <div className="p-2 border-b border-slate-100">
