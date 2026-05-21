@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { Copy, Check, StickyNote, Trash2, ChevronDown, ChevronUp, X, Download, Upload, Zap } from "lucide-react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { Copy, Check, StickyNote, Trash2, ChevronDown, ChevronUp, X, Download, Upload, Zap, Clock, Calendar } from "lucide-react";
 
 const LS_NOTE  = "allmail_note_v1";
 const LS_CARDS = "allmail_cards_v2";
@@ -119,10 +119,10 @@ export default function AllMail() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uploadRef   = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { localStorage.setItem(LS_NOTE,  note); },                       [note]);
-  useEffect(() => { localStorage.setItem(LS_CARDS, JSON.stringify(cards)); },      [cards]);
+  useEffect(() => { localStorage.setItem(LS_NOTE,  note); },                        [note]);
+  useEffect(() => { localStorage.setItem(LS_CARDS, JSON.stringify(cards)); },       [cards]);
   useEffect(() => { localStorage.setItem(LS_DONE,  JSON.stringify([...doneIds])); }, [doneIds]);
-  useEffect(() => { localStorage.setItem(LS_DAYS,  JSON.stringify(days)); },       [days]);
+  useEffect(() => { localStorage.setItem(LS_DAYS,  JSON.stringify(days)); },        [days]);
 
   const handleNoteChange = (val: string) => {
     setNote(val);
@@ -134,18 +134,13 @@ export default function AllMail() {
   };
 
   const clearNote = () => { setNote(""); setConfirmClear(false); };
-
   const removeCard = (id: string) => setCards((prev) => prev.filter((c) => c.id !== id));
-
   const toggleDone = (id: string) =>
     setDoneIds((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-
   const setDayVal = (id: string, val: string) =>
     setDays((prev) => ({ ...prev, [id]: val }));
-
   const activateCard = (id: string) =>
     setDays((prev) => { const n = { ...prev }; delete n[id]; return n; });
-
   const toggleGroup = (gi: number) =>
     setCollapsedGroups((prev) => { const n = new Set(prev); n.has(gi) ? n.delete(gi) : n.add(gi); return n; });
 
@@ -171,10 +166,30 @@ export default function AllMail() {
   const doneCount = [...doneIds].filter((id) => cards.some((c) => c.id === id)).length;
   const groups    = chunkArray(cards, GROUP_SIZE);
 
+  // Top 20 closest due cards
+  const closestCards = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const result = cards
+      .map((card, idx) => {
+        const dayVal = days[card.id] ?? "";
+        const n = parseInt(dayVal);
+        if (!dayVal || isNaN(n) || n <= 0) return null;
+        const due = new Date(today);
+        due.setDate(today.getDate() + n);
+        const daysLeft = Math.round((due.getTime() - today.getTime()) / 86400000);
+        return { card, globalIdx: idx, daysLeft, dueDate: due };
+      })
+      .filter((x): x is { card: MailCard; globalIdx: number; daysLeft: number; dueDate: Date } => x !== null)
+      .sort((a, b) => a.daysLeft - b.daysLeft)
+      .slice(0, 20);
+    return result;
+  }, [cards, days]);
+
   return (
     <div className="h-full flex flex-col bg-slate-50 dark:bg-slate-950">
 
-      {/* Top header bar */}
+      {/* ── Top header bar ──────────────────────────────── */}
       <header className="shrink-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 px-5 py-2.5 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-sm font-bold text-slate-700 dark:text-slate-200">All Mail</span>
@@ -199,195 +214,264 @@ export default function AllMail() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto">
-      <div className="max-w-4xl mx-auto px-4 py-5 space-y-4">
+      {/* ── Body: sidebar + main ──────────────────────── */}
+      <div className="flex-1 flex overflow-hidden min-h-0">
 
-        {/* Note card */}
-        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 select-none">
-            <div className="flex items-center gap-2 cursor-pointer flex-1" onClick={() => setNoteOpen((v) => !v)}>
-              <StickyNote size={15} className="text-amber-500" />
-              <span className="text-sm font-bold text-amber-800 dark:text-amber-300">Note — Paste your mails here</span>
-              {total > 0 && <span className="text-[11px] bg-amber-200 dark:bg-amber-800 text-amber-700 dark:text-amber-300 font-semibold px-2 py-0.5 rounded-full">{total} mails</span>}
-            </div>
-            <div className="flex items-center gap-1.5">
-              {doneCount > 0 && <span className="text-[11px] bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 font-semibold px-2 py-0.5 rounded-full">✓ {doneCount} done</span>}
-              {note && (
-                confirmClear ? (
-                  <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                    <span className="text-[11px] text-red-500 font-medium">Clear note?</span>
-                    <button onClick={clearNote} className="px-2 py-0.5 text-[11px] font-semibold bg-red-500 text-white rounded-lg">Yes</button>
-                    <button onClick={() => setConfirmClear(false)} className="px-2 py-0.5 text-[11px] font-semibold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg">No</button>
-                  </div>
-                ) : (
-                  <button onClick={(e) => { e.stopPropagation(); setConfirmClear(true); }}
-                    className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-500 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors">
-                    <Trash2 size={11} /> Clear All
-                  </button>
-                )
-              )}
-              <div className="cursor-pointer" onClick={() => setNoteOpen((v) => !v)}>
-                {noteOpen ? <ChevronUp size={14} className="text-amber-400" /> : <ChevronDown size={14} className="text-amber-400" />}
-              </div>
-            </div>
+        {/* LEFT SIDEBAR — Closest due cards */}
+        <div className="w-52 shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
+          <div className="px-3 py-2.5 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2 shrink-0">
+            <Clock size={13} className="text-orange-500 shrink-0" />
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Closest Due</span>
+            {closestCards.length > 0 && (
+              <span className="ml-auto text-[10px] bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 font-bold px-1.5 py-0.5 rounded-full">
+                {closestCards.length}
+              </span>
+            )}
           </div>
-          {noteOpen && (
-            <div className="px-4 pb-4">
-              <textarea ref={textareaRef} value={note} onChange={(e) => handleNoteChange(e.target.value)}
-                placeholder={"Paste emails here — one per line or comma separated.\nDuplicates are ignored automatically."}
-                className="w-full h-36 text-sm font-mono text-slate-700 dark:text-slate-300 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-2.5 outline-none resize-none placeholder:text-amber-300 dark:placeholder:text-amber-700 focus:border-amber-400 focus:ring-1 focus:ring-amber-200 dark:focus:ring-amber-800 transition-all" />
-              <div className="flex items-center justify-between mt-2">
-                <p className="text-[11px] text-amber-500 dark:text-amber-600">Each line = 1 card · Clear All only clears note, cards stay · duplicates ignored</p>
-                {dupWarning > 0 && <span className="text-[11px] text-orange-500 font-semibold animate-pulse">{dupWarning} duplicate{dupWarning > 1 ? "s" : ""} skipped</span>}
+          <div className="flex-1 overflow-y-auto">
+            {closestCards.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full py-8 px-3 text-center">
+                <Calendar size={28} className="text-slate-300 dark:text-slate-600 mb-2" />
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed">
+                  No scheduled cards yet.<br />Type days on any card.
+                </p>
               </div>
-            </div>
-          )}
-        </div>
-
-        {/* Stats bar */}
-        {total > 0 && (
-          <div className="flex items-center justify-between px-1">
-            <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">
-              {total} mail{total !== 1 ? "s" : ""} · {groups.length} group{groups.length !== 1 ? "s" : ""}
-              {doneCount > 0 && <span className="ml-2 text-emerald-500 font-semibold">· {doneCount} done · {total - doneCount} remaining</span>}
-            </p>
-            {doneCount > 0 && (
-              <div className="flex-1 mx-4 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: `${Math.round((doneCount / total) * 100)}%` }} />
+            ) : (
+              <div className="p-2 space-y-1.5">
+                {closestCards.map(({ card, globalIdx, daysLeft, dueDate }, rank) => {
+                  const urgency = daysLeft <= 3 ? "red" : daysLeft <= 7 ? "orange" : daysLeft <= 14 ? "yellow" : "slate";
+                  const dueDateStr = dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                  const bgClass =
+                    urgency === "red"    ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800" :
+                    urgency === "orange" ? "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800" :
+                    urgency === "yellow" ? "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800" :
+                                          "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700";
+                  const numClass =
+                    urgency === "red"    ? "bg-red-200 dark:bg-red-900/60 text-red-700 dark:text-red-300" :
+                    urgency === "orange" ? "bg-orange-200 dark:bg-orange-900/60 text-orange-700 dark:text-orange-300" :
+                    urgency === "yellow" ? "bg-yellow-200 dark:bg-yellow-900/60 text-yellow-700 dark:text-yellow-300" :
+                                          "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400";
+                  const dayClass =
+                    urgency === "red"    ? "text-red-600 dark:text-red-400" :
+                    urgency === "orange" ? "text-orange-600 dark:text-orange-400" :
+                    urgency === "yellow" ? "text-yellow-600 dark:text-yellow-400" :
+                                          "text-slate-500 dark:text-slate-400";
+                  return (
+                    <div key={card.id} className={`rounded-lg border px-2.5 py-2 ${bgClass}`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${numClass}`}>
+                          #{String(globalIdx + 1).padStart(3, "0")}
+                        </span>
+                        <span className={`text-[10px] font-bold ${dayClass}`}>
+                          {daysLeft === 0 ? "Today!" : daysLeft === 1 ? "1 day" : `${daysLeft}d`}
+                        </span>
+                      </div>
+                      <p className="text-[10px] font-mono text-slate-600 dark:text-slate-400 truncate leading-relaxed">
+                        {card.text}
+                      </p>
+                      <div className="flex items-center gap-1 mt-1">
+                        <Calendar size={9} className="text-slate-400 dark:text-slate-500 shrink-0" />
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">{dueDateStr}</span>
+                        {rank < 3 && (
+                          <span className="ml-auto text-[9px] font-bold text-white bg-red-500 px-1 py-0.5 rounded">
+                            #{rank + 1}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
-        )}
+        </div>
 
-        {/* Groups of 6 */}
-        {groups.map((group, gi) => {
-          const startNum  = gi * GROUP_SIZE + 1;
-          const endNum    = startNum + group.length - 1;
-          const collapsed = collapsedGroups.has(gi);
-          const groupDone = group.filter((c) => doneIds.has(c.id)).length;
-          const allDone   = groupDone === group.length;
+        {/* MAIN CONTENT */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-4xl mx-auto px-4 py-5 space-y-4">
 
-          return (
-            <div key={gi} className={`rounded-2xl border shadow-sm overflow-hidden transition-all ${allDone ? "border-emerald-200 dark:border-emerald-800" : "border-slate-200 dark:border-slate-700"}`}>
-              {/* Group header */}
-              <button onClick={() => toggleGroup(gi)}
-                className={`w-full flex items-center justify-between px-4 py-2.5 text-left transition-colors ${allDone ? "bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30" : "bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700"}`}>
-                <div className="flex items-center gap-2.5">
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-lg ${allDone ? "bg-emerald-200 dark:bg-emerald-800 text-emerald-700 dark:text-emerald-300" : "bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400"}`}>
-                    Group {gi + 1}
-                  </span>
-                  <span className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">#{String(startNum).padStart(3, "0")} – #{String(endNum).padStart(3, "0")}</span>
-                  {allDone && <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">✓ All Done</span>}
-                  {!allDone && groupDone > 0 && <span className="text-[11px] text-emerald-500">{groupDone}/{group.length} done</span>}
+            {/* ── Note card ──────────────────────────────── */}
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 select-none">
+                <div className="flex items-center gap-2 cursor-pointer flex-1" onClick={() => setNoteOpen((v) => !v)}>
+                  <StickyNote size={15} className="text-amber-500" />
+                  <span className="text-sm font-bold text-amber-800 dark:text-amber-300">Note — Paste your mails here</span>
+                  {total > 0 && <span className="text-[11px] bg-amber-200 dark:bg-amber-800 text-amber-700 dark:text-amber-300 font-semibold px-2 py-0.5 rounded-full">{total} mails</span>}
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-20 h-1 bg-slate-200 dark:bg-slate-600 rounded-full overflow-hidden">
-                    <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: `${Math.round((groupDone / group.length) * 100)}%` }} />
-                  </div>
-                  {collapsed ? <ChevronDown size={13} className="text-slate-400 dark:text-slate-500" /> : <ChevronUp size={13} className="text-slate-400 dark:text-slate-500" />}
-                </div>
-              </button>
-
-              {/* Cards */}
-              {!collapsed && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-3 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-700">
-                  {group.map((card, localIdx) => {
-                    const globalIdx = gi * GROUP_SIZE + localIdx;
-                    const done      = doneIds.has(card.id);
-                    const dayVal    = days[card.id] ?? "";
-                    const inactive  = dayVal.length > 0;
-                    const daysNum   = parseInt(dayVal);
-                    const dueDate   = !isNaN(daysNum) && daysNum > 0 ? addDays(daysNum) : null;
-
-                    return (
-                      <div key={card.id}
-                        className={`rounded-xl border flex flex-col gap-0 transition-all shadow-sm overflow-hidden ${
-                          inactive
-                            ? "bg-gray-950 border-gray-800"
-                            : done
-                              ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800"
-                              : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow"
-                        }`}
-                      >
-                        {/* INACTIVE top bar */}
-                        {inactive && (
-                          <div className="flex items-center justify-between px-3 py-2 border-b border-white/10">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[10px] text-white/40 font-mono">INACTIVE</span>
-                              {dueDate && (
-                                <span className="text-[10px] font-bold text-orange-400 bg-orange-400/15 px-1.5 py-0.5 rounded-md">
-                                  📅 {dueDate}
-                                </span>
-                              )}
-                            </div>
-                            <button
-                              onClick={() => activateCard(card.id)}
-                              className="flex items-center gap-1 px-2 py-0.5 text-[11px] font-bold bg-blue-500 hover:bg-blue-400 text-white rounded-lg transition-colors"
-                            >
-                              <Zap size={9} strokeWidth={2.5} /> Active
-                            </button>
-                          </div>
-                        )}
-
-                        <div className="p-3.5 flex flex-col gap-2.5 flex-1">
-                          {/* Top row: number + done badge + X */}
-                          <div className="flex items-center justify-between gap-2">
-                            <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md ${
-                              inactive ? "bg-white/10 text-white/50" : done ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400" : "bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500"
-                            }`}>
-                              {String(globalIdx + 1).padStart(3, "0")}
-                            </span>
-                            <div className="flex items-center gap-1 ml-auto">
-                              {done && !inactive && <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-1.5 py-0.5 rounded-full">DONE</span>}
-                              <button onClick={() => removeCard(card.id)}
-                                className={`w-5 h-5 rounded-full flex items-center justify-center transition-colors ${
-                                  inactive ? "text-white/20 hover:bg-white/10 hover:text-white/60" : "text-slate-300 dark:text-slate-600 hover:bg-red-100 dark:hover:bg-red-900/30 hover:text-red-500"
-                                }`}>
-                                <X size={11} strokeWidth={2.5} />
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Mail text */}
-                          <p className={`text-xs font-mono break-all leading-relaxed flex-1 ${
-                            inactive ? "text-white/80" : done ? "text-emerald-700 dark:text-emerald-400 line-through opacity-60" : "text-slate-800 dark:text-slate-200"
-                          }`}>
-                            {card.text}
-                          </p>
-
-                          {/* Actions */}
-                          <div className={`flex items-center gap-1.5 pt-2 border-t ${inactive ? "border-white/10" : "border-slate-100 dark:border-slate-700"}`}>
-                            <CopyBtn text={card.text} dark={inactive} />
-                            <DaysInput value={dayVal} onChange={(v) => setDayVal(card.id, v)} inactive={inactive} dark={inactive} />
-                            {!inactive && (
-                              <button onClick={() => toggleDone(card.id)}
-                                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-all ml-auto ${
-                                  done ? "bg-emerald-500 text-white hover:bg-emerald-600" : "bg-slate-100 dark:bg-slate-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400"
-                                }`}>
-                                <Check size={10} strokeWidth={3} />
-                                {done ? "Done" : "Mark Done"}
-                              </button>
-                            )}
-                          </div>
-                        </div>
+                <div className="flex items-center gap-1.5">
+                  {doneCount > 0 && <span className="text-[11px] bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 font-semibold px-2 py-0.5 rounded-full">✓ {doneCount} done</span>}
+                  {note && (
+                    confirmClear ? (
+                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <span className="text-[11px] text-red-500 font-medium">Clear note?</span>
+                        <button onClick={clearNote} className="px-2 py-0.5 text-[11px] font-semibold bg-red-500 text-white rounded-lg">Yes</button>
+                        <button onClick={() => setConfirmClear(false)} className="px-2 py-0.5 text-[11px] font-semibold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg">No</button>
                       </div>
-                    );
-                  })}
+                    ) : (
+                      <button onClick={(e) => { e.stopPropagation(); setConfirmClear(true); }}
+                        className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-500 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors">
+                        <Trash2 size={11} /> Clear All
+                      </button>
+                    )
+                  )}
+                  <div className="cursor-pointer" onClick={() => setNoteOpen((v) => !v)}>
+                    {noteOpen ? <ChevronUp size={14} className="text-amber-400" /> : <ChevronDown size={14} className="text-amber-400" />}
+                  </div>
+                </div>
+              </div>
+              {noteOpen && (
+                <div className="px-4 pb-4">
+                  <textarea ref={textareaRef} value={note} onChange={(e) => handleNoteChange(e.target.value)}
+                    placeholder={"Paste emails here — one per line or comma separated.\nDuplicates are ignored automatically."}
+                    className="w-full h-36 text-sm font-mono text-slate-700 dark:text-slate-300 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-2.5 outline-none resize-none placeholder:text-amber-300 dark:placeholder:text-amber-700 focus:border-amber-400 focus:ring-1 focus:ring-amber-200 dark:focus:ring-amber-800 transition-all" />
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-[11px] text-amber-500 dark:text-amber-600">Each line = 1 card · Clear All only clears note, cards stay · duplicates ignored</p>
+                    {dupWarning > 0 && <span className="text-[11px] text-orange-500 font-semibold animate-pulse">{dupWarning} duplicate{dupWarning > 1 ? "s" : ""} skipped</span>}
+                  </div>
                 </div>
               )}
             </div>
-          );
-        })}
 
-        {/* Empty state */}
-        {total === 0 && (
-          <div className="text-center py-20">
-            <StickyNote size={48} className="mx-auto mb-3 opacity-30 text-slate-300 dark:text-slate-600" />
-            <p className="text-sm font-medium text-slate-400 dark:text-slate-500">Paste your mails in the note above</p>
-            <p className="text-xs text-slate-300 dark:text-slate-600 mt-1">Or upload a .txt file · Every 6 cards = 1 group · Type days to schedule</p>
+            {/* ── Stats bar ──────────────────────────────── */}
+            {total > 0 && (
+              <div className="flex items-center justify-between px-1">
+                <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">
+                  {total} mail{total !== 1 ? "s" : ""} · {groups.length} group{groups.length !== 1 ? "s" : ""}
+                  {doneCount > 0 && <span className="ml-2 text-emerald-500 font-semibold">· {doneCount} done · {total - doneCount} remaining</span>}
+                </p>
+                {doneCount > 0 && (
+                  <div className="flex-1 mx-4 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                    <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: `${Math.round((doneCount / total) * 100)}%` }} />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Groups of 6 ────────────────────────────── */}
+            {groups.map((group, gi) => {
+              const startNum  = gi * GROUP_SIZE + 1;
+              const endNum    = startNum + group.length - 1;
+              const collapsed = collapsedGroups.has(gi);
+              const groupDone = group.filter((c) => doneIds.has(c.id)).length;
+              const allDone   = groupDone === group.length;
+
+              return (
+                <div key={gi} className={`rounded-2xl border shadow-sm overflow-hidden transition-all ${allDone ? "border-emerald-200 dark:border-emerald-800" : "border-slate-200 dark:border-slate-700"}`}>
+                  <button onClick={() => toggleGroup(gi)}
+                    className={`w-full flex items-center justify-between px-4 py-2.5 text-left transition-colors ${allDone ? "bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30" : "bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700"}`}>
+                    <div className="flex items-center gap-2.5">
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-lg ${allDone ? "bg-emerald-200 dark:bg-emerald-800 text-emerald-700 dark:text-emerald-300" : "bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400"}`}>
+                        Group {gi + 1}
+                      </span>
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">#{String(startNum).padStart(3, "0")} – #{String(endNum).padStart(3, "0")}</span>
+                      {allDone && <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">✓ All Done</span>}
+                      {!allDone && groupDone > 0 && <span className="text-[11px] text-emerald-500">{groupDone}/{group.length} done</span>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-20 h-1 bg-slate-200 dark:bg-slate-600 rounded-full overflow-hidden">
+                        <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: `${Math.round((groupDone / group.length) * 100)}%` }} />
+                      </div>
+                      {collapsed ? <ChevronDown size={13} className="text-slate-400 dark:text-slate-500" /> : <ChevronUp size={13} className="text-slate-400 dark:text-slate-500" />}
+                    </div>
+                  </button>
+
+                  {!collapsed && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-3 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-700">
+                      {group.map((card, localIdx) => {
+                        const globalIdx = gi * GROUP_SIZE + localIdx;
+                        const done      = doneIds.has(card.id);
+                        const dayVal    = days[card.id] ?? "";
+                        const inactive  = dayVal.length > 0;
+                        const daysNum   = parseInt(dayVal);
+                        const dueDate   = !isNaN(daysNum) && daysNum > 0 ? addDays(daysNum) : null;
+
+                        return (
+                          <div key={card.id}
+                            className={`rounded-xl border flex flex-col gap-0 transition-all shadow-sm overflow-hidden ${
+                              inactive
+                                ? "bg-gray-950 border-gray-800"
+                                : done
+                                  ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800"
+                                  : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow"
+                            }`}
+                          >
+                            {inactive && (
+                              <div className="flex items-center justify-between px-3 py-2 border-b border-white/10">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[10px] text-white/40 font-mono">INACTIVE</span>
+                                  {dueDate && (
+                                    <span className="text-[10px] font-bold text-orange-400 bg-orange-400/15 px-1.5 py-0.5 rounded-md">
+                                      📅 {dueDate}
+                                    </span>
+                                  )}
+                                </div>
+                                <button
+                                  onClick={() => activateCard(card.id)}
+                                  className="flex items-center gap-1 px-2 py-0.5 text-[11px] font-bold bg-blue-500 hover:bg-blue-400 text-white rounded-lg transition-colors"
+                                >
+                                  <Zap size={9} strokeWidth={2.5} /> Active
+                                </button>
+                              </div>
+                            )}
+
+                            <div className="p-3.5 flex flex-col gap-2.5 flex-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md ${
+                                  inactive ? "bg-white/10 text-white/50" : done ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400" : "bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500"
+                                }`}>
+                                  {String(globalIdx + 1).padStart(3, "0")}
+                                </span>
+                                <div className="flex items-center gap-1 ml-auto">
+                                  {done && !inactive && <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-1.5 py-0.5 rounded-full">DONE</span>}
+                                  <button onClick={() => removeCard(card.id)}
+                                    className={`w-5 h-5 rounded-full flex items-center justify-center transition-colors ${
+                                      inactive ? "text-white/20 hover:bg-white/10 hover:text-white/60" : "text-slate-300 dark:text-slate-600 hover:bg-red-100 dark:hover:bg-red-900/30 hover:text-red-500"
+                                    }`}>
+                                    <X size={11} strokeWidth={2.5} />
+                                  </button>
+                                </div>
+                              </div>
+
+                              <p className={`text-xs font-mono break-all leading-relaxed flex-1 ${
+                                inactive ? "text-white/80" : done ? "text-emerald-700 dark:text-emerald-400 line-through opacity-60" : "text-slate-800 dark:text-slate-200"
+                              }`}>
+                                {card.text}
+                              </p>
+
+                              <div className={`flex items-center gap-1.5 pt-2 border-t ${inactive ? "border-white/10" : "border-slate-100 dark:border-slate-700"}`}>
+                                <CopyBtn text={card.text} dark={inactive} />
+                                <DaysInput value={dayVal} onChange={(v) => setDayVal(card.id, v)} inactive={inactive} dark={inactive} />
+                                {!inactive && (
+                                  <button onClick={() => toggleDone(card.id)}
+                                    className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-all ml-auto ${
+                                      done ? "bg-emerald-500 text-white hover:bg-emerald-600" : "bg-slate-100 dark:bg-slate-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400"
+                                    }`}>
+                                    <Check size={10} strokeWidth={3} />
+                                    {done ? "Done" : "Mark Done"}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Empty state */}
+            {total === 0 && (
+              <div className="text-center py-20">
+                <StickyNote size={48} className="mx-auto mb-3 opacity-30 text-slate-300 dark:text-slate-600" />
+                <p className="text-sm font-medium text-slate-400 dark:text-slate-500">Paste your mails in the note above</p>
+                <p className="text-xs text-slate-300 dark:text-slate-600 mt-1">Or upload a .txt file · Every 6 cards = 1 group · Type days to schedule</p>
+              </div>
+            )}
+
           </div>
-        )}
-      </div>
+        </div>
       </div>
     </div>
   );
