@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { outlookData as defaultData, OutlookEntry } from "@/data/outlookData";
-import { Copy, Check, ChevronRight, Mail, Search, X, Upload, Download, Trash2 } from "lucide-react";
+import { Copy, Check, ChevronRight, Mail, Search, X, Upload, Download, Trash2, ExternalLink } from "lucide-react";
 
 const LS_ENTRIES = "outlook_entries_v1";
 const LS_DONE = "outlook_done_v1";
@@ -248,7 +248,18 @@ export default function Home() {
             <Mail size={16} className="text-white" />
           </div>
           <div>
-            <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100">Outlook Separator</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100">Outlook Separator</h1>
+              <a
+                href="https://dongvanfb.net/read_mail_box/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-500 hover:bg-red-600 text-white text-[11px] font-semibold transition-colors"
+              >
+                <ExternalLink size={10} />
+                Read Mail
+              </a>
+            </div>
             <p className="text-xs text-slate-400 dark:text-slate-500">
               {entries.length} accounts
               {doneCount > 0 && <span className="ml-1.5 text-emerald-500 font-semibold">· {doneCount} done</span>}
