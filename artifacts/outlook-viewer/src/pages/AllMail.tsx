@@ -1,15 +1,60 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Copy, Check, StickyNote, Trash2, ChevronDown, ChevronUp, X, Download, Upload, Zap, Clock, Calendar } from "lucide-react";
 
-const LS_NOTE  = "allmail_note_v1";
-const LS_CARDS = "allmail_cards_v2";
-const LS_DONE  = "allmail_done_v1";
-const LS_DAYS  = "allmail_days_v1";
+const LS_NOTE     = "allmail_note_v1";
+const LS_CARDS    = "allmail_cards_v2";
+const LS_DONE     = "allmail_done_v1";
+const LS_DUEDATES = "allmail_duedates_v2"; // values = "YYYY-MM-DD" ISO strings
 
 const GROUP_SIZE = 6;
 
 interface MailCard { id: string; text: string; }
 
+// ── Date helpers ────────────────────────────────────────────
+function todayMidnight(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/** ISO string for today: "YYYY-MM-DD" */
+function todayISO(): string {
+  return todayMidnight().toISOString().split("T")[0];
+}
+
+/** Compute ISO due date = today + n days */
+function nDaysFromTodayISO(n: number): string {
+  const d = todayMidnight();
+  d.setDate(d.getDate() + n);
+  return d.toISOString().split("T")[0];
+}
+
+/** Days remaining from today to an ISO date string (negative = overdue) */
+function daysLeftFromISO(iso: string): number {
+  const due = new Date(iso + "T00:00:00");
+  return Math.round((due.getTime() - todayMidnight().getTime()) / 86400000);
+}
+
+/** Format ISO date as "May 26" */
+function formatISO(iso: string): string {
+  return new Date(iso + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+/** Migrate old storage: if value is a plain number string, convert to ISO date (today + n) */
+function migrateOldDays(raw: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (/^\d+$/.test(v)) {
+      const n = parseInt(v);
+      if (n > 0) out[k] = nDaysFromTodayISO(n);
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
+// ── Parsing helpers ─────────────────────────────────────────
 function makeId(text: string) {
   return `c-${text.toLowerCase().trim().replace(/[^a-z0-9@._-]/g, "").slice(0, 30)}`;
 }
@@ -40,12 +85,7 @@ function chunkArray<T>(arr: T[], size: number): T[][] {
   return out;
 }
 
-function addDays(n: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + n);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
+// ── Sub-components ──────────────────────────────────────────
 function CopyBtn({ text, dark }: { text: string; dark?: boolean }) {
   const [copied, setCopied] = useState(false);
   return (
@@ -65,16 +105,41 @@ function CopyBtn({ text, dark }: { text: string; dark?: boolean }) {
   );
 }
 
+/**
+ * DaysInput — stores an ISO due date, displays days remaining (decreases day by day).
+ * value: ISO date string "YYYY-MM-DD" or "".
+ * onChange: called with new ISO date string or "" to clear.
+ */
 function DaysInput({
   value, onChange, inactive, dark,
 }: { value: string; onChange: (v: string) => void; inactive: boolean; dark: boolean }) {
-  const n   = parseInt(value);
-  const due = !isNaN(n) && n > 0 ? addDays(n) : null;
+  const [editing,  setEditing]  = useState(false);
+  const [draft,    setDraft]    = useState("");
+
+  const daysLeft = value ? daysLeftFromISO(value) : null;
+  const dueLabel = value ? formatISO(value) : null;
+
+  // What to display in the input box
+  const displayVal = editing ? draft : (daysLeft !== null ? String(daysLeft) : "");
+
+  const hasDue = daysLeft !== null;
+
+  const handleChange = (raw: string) => {
+    const cleaned = raw.replace(/\D/g, "");
+    setDraft(cleaned);
+    const n = parseInt(cleaned);
+    if (!isNaN(n) && n > 0) {
+      onChange(nDaysFromTodayISO(n));
+    } else if (cleaned === "") {
+      onChange("");
+    }
+  };
+
   return (
     <div className={`flex items-center gap-1 rounded-lg border px-1.5 py-0.5 transition-all ${
       inactive
         ? "border-white/20 bg-white/10"
-        : due
+        : hasDue
           ? "border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20"
           : "border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700"
     }`}>
@@ -83,32 +148,52 @@ function DaysInput({
         inputMode="numeric"
         maxLength={3}
         placeholder="days"
-        value={value}
+        value={displayVal}
         onClick={(e) => e.stopPropagation()}
-        onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))}
+        onFocus={() => {
+          setEditing(true);
+          setDraft(daysLeft !== null ? String(daysLeft) : "");
+        }}
+        onBlur={() => setEditing(false)}
+        onChange={(e) => handleChange(e.target.value)}
         className={`bg-transparent outline-none w-[28px] text-center text-[11px] font-mono font-bold placeholder:font-normal ${
-          inactive ? "text-white/70 placeholder:text-white/30" : due ? "text-orange-600 dark:text-orange-400 placeholder:text-slate-300" : "text-slate-400 dark:text-slate-400 placeholder:text-slate-300 dark:placeholder:text-slate-600"
+          inactive
+            ? "text-white/70 placeholder:text-white/30"
+            : hasDue
+              ? "text-orange-600 dark:text-orange-400 placeholder:text-slate-300"
+              : "text-slate-400 dark:text-slate-400 placeholder:text-slate-300 dark:placeholder:text-slate-600"
         }`}
       />
-      {due && (
+      {dueLabel && (
         <span className={`text-[10px] font-semibold whitespace-nowrap ${inactive ? "text-white/60" : "text-orange-500 dark:text-orange-400"}`}>
-          → {due}
+          → {dueLabel}
         </span>
       )}
     </div>
   );
 }
 
+// ── Main component ──────────────────────────────────────────
 export default function AllMail() {
-  const [note,   setNote]   = useState<string>(() => localStorage.getItem(LS_NOTE)  ?? "");
+  const [note,   setNote]   = useState<string>(() => localStorage.getItem(LS_NOTE) ?? "");
   const [cards,  setCards]  = useState<MailCard[]>(() => {
     try { return JSON.parse(localStorage.getItem(LS_CARDS) ?? "[]"); } catch { return []; }
   });
   const [doneIds, setDoneIds] = useState<Set<string>>(() => {
     try { return new Set(JSON.parse(localStorage.getItem(LS_DONE) ?? "[]")); } catch { return new Set(); }
   });
-  const [days, setDays] = useState<Record<string, string>>(() => {
-    try { return JSON.parse(localStorage.getItem(LS_DAYS) ?? "{}"); } catch { return {}; }
+
+  // dueDates: Record<cardId, "YYYY-MM-DD">
+  const [dueDates, setDueDates] = useState<Record<string, string>>(() => {
+    try {
+      // Try new key first
+      const raw = localStorage.getItem(LS_DUEDATES);
+      if (raw) return JSON.parse(raw);
+      // Migrate from old numeric key
+      const oldRaw = localStorage.getItem("allmail_days_v1");
+      if (oldRaw) return migrateOldDays(JSON.parse(oldRaw));
+      return {};
+    } catch { return {}; }
   });
 
   const [noteOpen,        setNoteOpen]        = useState(true);
@@ -119,10 +204,10 @@ export default function AllMail() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uploadRef   = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { localStorage.setItem(LS_NOTE,  note); },                        [note]);
-  useEffect(() => { localStorage.setItem(LS_CARDS, JSON.stringify(cards)); },       [cards]);
-  useEffect(() => { localStorage.setItem(LS_DONE,  JSON.stringify([...doneIds])); }, [doneIds]);
-  useEffect(() => { localStorage.setItem(LS_DAYS,  JSON.stringify(days)); },        [days]);
+  useEffect(() => { localStorage.setItem(LS_NOTE,     note); },                           [note]);
+  useEffect(() => { localStorage.setItem(LS_CARDS,    JSON.stringify(cards)); },          [cards]);
+  useEffect(() => { localStorage.setItem(LS_DONE,     JSON.stringify([...doneIds])); },   [doneIds]);
+  useEffect(() => { localStorage.setItem(LS_DUEDATES, JSON.stringify(dueDates)); },       [dueDates]);
 
   const handleNoteChange = (val: string) => {
     setNote(val);
@@ -133,15 +218,15 @@ export default function AllMail() {
     setCards(parseOnly(val));
   };
 
-  const clearNote = () => { setNote(""); setConfirmClear(false); };
-  const removeCard = (id: string) => setCards((prev) => prev.filter((c) => c.id !== id));
-  const toggleDone = (id: string) =>
+  const clearNote    = () => { setNote(""); setConfirmClear(false); };
+  const removeCard   = (id: string) => setCards((prev) => prev.filter((c) => c.id !== id));
+  const toggleDone   = (id: string) =>
     setDoneIds((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  const setDayVal = (id: string, val: string) =>
-    setDays((prev) => ({ ...prev, [id]: val }));
+  const setDueDate   = (id: string, iso: string) =>
+    setDueDates((prev) => iso ? { ...prev, [id]: iso } : (() => { const n = { ...prev }; delete n[id]; return n; })());
   const activateCard = (id: string) =>
-    setDays((prev) => { const n = { ...prev }; delete n[id]; return n; });
-  const toggleGroup = (gi: number) =>
+    setDueDates((prev) => { const n = { ...prev }; delete n[id]; return n; });
+  const toggleGroup  = (gi: number) =>
     setCollapsedGroups((prev) => { const n = new Set(prev); n.has(gi) ? n.delete(gi) : n.add(gi); return n; });
 
   const handleDownload = () => {
@@ -166,30 +251,23 @@ export default function AllMail() {
   const doneCount = [...doneIds].filter((id) => cards.some((c) => c.id === id)).length;
   const groups    = chunkArray(cards, GROUP_SIZE);
 
-  // Top 20 closest due cards (includes overdue/0-day)
+  // Top 20 sidebar cards — uses real calendar countdown
   const closestCards = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const result = cards
+    return cards
       .map((card, idx) => {
-        const dayVal = days[card.id] ?? "";
-        const n = parseInt(dayVal);
-        if (!dayVal || isNaN(n)) return null;
-        const due = new Date(today);
-        due.setDate(today.getDate() + n);
-        const daysLeft = Math.round((due.getTime() - today.getTime()) / 86400000);
-        return { card, globalIdx: idx, daysLeft, dueDate: due };
+        const iso = dueDates[card.id];
+        if (!iso) return null;
+        const daysLeft = daysLeftFromISO(iso);
+        return { card, globalIdx: idx, daysLeft, iso };
       })
-      .filter((x): x is { card: MailCard; globalIdx: number; daysLeft: number; dueDate: Date } => x !== null)
+      .filter((x): x is { card: MailCard; globalIdx: number; daysLeft: number; iso: string } => x !== null)
       .sort((a, b) => {
-        // overdue (<=0) first, then ascending by daysLeft
         if (a.daysLeft <= 0 && b.daysLeft > 0) return -1;
         if (b.daysLeft <= 0 && a.daysLeft > 0) return 1;
         return a.daysLeft - b.daysLeft;
       })
       .slice(0, 20);
-    return result;
-  }, [cards, days]);
+  }, [cards, dueDates]);
 
   return (
     <div className="h-full flex flex-col bg-slate-50 dark:bg-slate-950">
@@ -202,18 +280,13 @@ export default function AllMail() {
           {doneCount > 0 && <span className="text-[11px] bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 font-semibold px-2 py-0.5 rounded-full">✓ {doneCount} done</span>}
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => uploadRef.current?.click()}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-          >
+          <button onClick={() => uploadRef.current?.click()}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
             <Upload size={12} /> Upload
           </button>
           <input ref={uploadRef} type="file" accept=".txt,.csv" className="hidden" onChange={handleUploadFile} />
-          <button
-            onClick={handleDownload}
-            disabled={total === 0}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-slate-700 dark:bg-slate-600 text-white rounded-lg hover:bg-slate-800 dark:hover:bg-slate-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shadow-sm"
-          >
+          <button onClick={handleDownload} disabled={total === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-slate-700 dark:bg-slate-600 text-white rounded-lg hover:bg-slate-800 dark:hover:bg-slate-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shadow-sm">
             <Download size={12} /> Download
           </button>
         </div>
@@ -222,7 +295,7 @@ export default function AllMail() {
       {/* ── Body: sidebar + main ──────────────────────── */}
       <div className="flex-1 flex overflow-hidden min-h-0">
 
-        {/* LEFT SIDEBAR — Closest due cards */}
+        {/* LEFT SIDEBAR */}
         <div className="w-52 shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
           <div className="px-3 py-2.5 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2 shrink-0">
             <Clock size={13} className="text-orange-500 shrink-0" />
@@ -246,16 +319,20 @@ export default function AllMail() {
                 {(() => {
                   const overdueItems  = closestCards.filter(x => x.daysLeft <= 0);
                   const upcomingItems = closestCards.filter(x => x.daysLeft > 0);
-                  const renderCard = (item: typeof closestCards[0], rank: number, isOverdue: boolean, upcomingRank: number) => {
-                    const { card, globalIdx, daysLeft, dueDate } = item;
-                    const dueDateStr = dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-                    // overdue → red; top3 upcoming → green; rest → urgency colors
-                    const isTop3 = !isOverdue && upcomingRank < 3;
-                    const urgency = isOverdue ? "over"
-                      : isTop3 ? "green"
-                      : daysLeft <= 7 ? "orange"
+
+                  const renderCard = (
+                    item: typeof closestCards[0],
+                    isOverdue: boolean,
+                    upcomingRank: number,
+                  ) => {
+                    const { card, globalIdx, daysLeft, iso } = item;
+                    const isTop3   = !isOverdue && upcomingRank < 3;
+                    const urgency  = isOverdue ? "over"
+                      : isTop3       ? "green"
+                      : daysLeft <= 7  ? "orange"
                       : daysLeft <= 14 ? "yellow"
                       : "slate";
+
                     const bgClass =
                       urgency === "over"   ? "bg-red-50 dark:bg-red-950/40 border-red-300 dark:border-red-700" :
                       urgency === "green"  ? "bg-emerald-50 dark:bg-emerald-900/25 border-emerald-300 dark:border-emerald-700" :
@@ -295,7 +372,9 @@ export default function AllMail() {
                         </p>
                         <div className="flex items-center gap-1 mt-1">
                           <Calendar size={9} className={`shrink-0 ${isOverdue ? "text-red-400" : "text-slate-400 dark:text-slate-500"}`} />
-                          <span className={`text-[10px] font-medium ${isOverdue ? "text-red-500 dark:text-red-400 line-through" : "text-slate-400 dark:text-slate-500"}`}>{dueDateStr}</span>
+                          <span className={`text-[10px] font-medium ${isOverdue ? "text-red-500 dark:text-red-400 line-through" : "text-slate-400 dark:text-slate-500"}`}>
+                            {formatISO(iso)}
+                          </span>
                           {isTop3 && (
                             <span className="ml-auto text-[9px] font-bold text-white bg-emerald-500 px-1 py-0.5 rounded">
                               #{upcomingRank + 1}
@@ -305,19 +384,20 @@ export default function AllMail() {
                       </div>
                     );
                   };
+
                   return (
                     <>
                       {overdueItems.length > 0 && (
                         <>
                           <p className="text-[9px] font-extrabold text-red-500 uppercase tracking-widest px-1">⚠ Overdue</p>
-                          {overdueItems.map((item, i) => renderCard(item, i, true, -1))}
+                          {overdueItems.map((item, i) => renderCard(item, true, -1))}
                           {upcomingItems.length > 0 && <div className="border-t border-slate-200 dark:border-slate-700 my-1" />}
                         </>
                       )}
                       {upcomingItems.length > 0 && (
                         <>
                           {overdueItems.length > 0 && <p className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest px-1">✦ Upcoming</p>}
-                          {upcomingItems.map((item, i) => renderCard(item, i, false, i))}
+                          {upcomingItems.map((item, i) => renderCard(item, false, i))}
                         </>
                       )}
                     </>
@@ -389,7 +469,7 @@ export default function AllMail() {
               </div>
             )}
 
-            {/* ── Groups of 6 ────────────────────────────── */}
+            {/* ── Groups ─────────────────────────────────── */}
             {groups.map((group, gi) => {
               const startNum  = gi * GROUP_SIZE + 1;
               const endNum    = startNum + group.length - 1;
@@ -422,10 +502,11 @@ export default function AllMail() {
                       {group.map((card, localIdx) => {
                         const globalIdx = gi * GROUP_SIZE + localIdx;
                         const done      = doneIds.has(card.id);
-                        const dayVal    = days[card.id] ?? "";
-                        const inactive  = dayVal.length > 0;
-                        const daysNum   = parseInt(dayVal);
-                        const dueDate   = !isNaN(daysNum) && daysNum > 0 ? addDays(daysNum) : null;
+                        const isoVal    = dueDates[card.id] ?? "";
+                        const inactive  = isoVal.length > 0;
+                        // Compute real days remaining from the stored ISO date
+                        const daysLeft  = isoVal ? daysLeftFromISO(isoVal) : null;
+                        const dueLabel  = isoVal ? formatISO(isoVal) : null;
 
                         return (
                           <div key={card.id}
@@ -441,16 +522,23 @@ export default function AllMail() {
                               <div className="flex items-center justify-between px-3 py-2 border-b border-white/10">
                                 <div className="flex items-center gap-1.5">
                                   <span className="text-[10px] text-white/40 font-mono">INACTIVE</span>
-                                  {dueDate && (
-                                    <span className="text-[10px] font-bold text-orange-400 bg-orange-400/15 px-1.5 py-0.5 rounded-md">
-                                      📅 {dueDate}
+                                  {dueLabel && (
+                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                                      daysLeft !== null && daysLeft <= 0
+                                        ? "text-red-400 bg-red-400/15"
+                                        : "text-orange-400 bg-orange-400/15"
+                                    }`}>
+                                      📅 {dueLabel}
+                                      {daysLeft !== null && (
+                                        <span className="ml-1 opacity-80">
+                                          ({daysLeft <= 0 ? "OVER" : `${daysLeft}d`})
+                                        </span>
+                                      )}
                                     </span>
                                   )}
                                 </div>
-                                <button
-                                  onClick={() => activateCard(card.id)}
-                                  className="flex items-center gap-1 px-2 py-0.5 text-[11px] font-bold bg-blue-500 hover:bg-blue-400 text-white rounded-lg transition-colors"
-                                >
+                                <button onClick={() => activateCard(card.id)}
+                                  className="flex items-center gap-1 px-2 py-0.5 text-[11px] font-bold bg-blue-500 hover:bg-blue-400 text-white rounded-lg transition-colors">
                                   <Zap size={9} strokeWidth={2.5} /> Active
                                 </button>
                               </div>
@@ -482,7 +570,12 @@ export default function AllMail() {
 
                               <div className={`flex items-center gap-1.5 pt-2 border-t ${inactive ? "border-white/10" : "border-slate-100 dark:border-slate-700"}`}>
                                 <CopyBtn text={card.text} dark={inactive} />
-                                <DaysInput value={dayVal} onChange={(v) => setDayVal(card.id, v)} inactive={inactive} dark={inactive} />
+                                <DaysInput
+                                  value={isoVal}
+                                  onChange={(iso) => setDueDate(card.id, iso)}
+                                  inactive={inactive}
+                                  dark={inactive}
+                                />
                                 {!inactive && (
                                   <button onClick={() => toggleDone(card.id)}
                                     className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-all ml-auto ${
