@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Copy, Check, StickyNote, Trash2, ChevronDown, ChevronUp, X, Download, Upload, Zap, Clock, Calendar, Eye, EyeOff } from "lucide-react";
 
-const LS_NOTE     = "allmail_note_v1";
-const LS_CARDS    = "allmail_cards_v2";
-const LS_DONE     = "allmail_done_v1";
-const LS_DUEDATES = "allmail_duedates_v2"; // values = "YYYY-MM-DD" ISO strings
+const LS_NOTE       = "allmail_note_v1";
+const LS_CARDS      = "allmail_cards_v2";
+const LS_DONE       = "allmail_done_v1";
+const LS_DUEDATES   = "allmail_duedates_v2"; // values = "YYYY-MM-DD" ISO strings
+const LS_SAVED_NOTE = "allmail_saved_note_v1"; // the note text that was last saved to cards
 
 const GROUP_SIZE = 6;
 
@@ -196,6 +197,11 @@ export default function AllMail() {
     } catch { return {}; }
   });
 
+  // savedNote = the note text that was last committed to cards
+  const [savedNote, setSavedNote] = useState<string>(
+    () => localStorage.getItem(LS_SAVED_NOTE) ?? localStorage.getItem(LS_NOTE) ?? ""
+  );
+
   const [noteOpen,        setNoteOpen]        = useState(true);
   const [confirmClear,    setConfirmClear]    = useState(false);
   const [dupWarning,      setDupWarning]      = useState(0);
@@ -204,21 +210,29 @@ export default function AllMail() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uploadRef   = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { localStorage.setItem(LS_NOTE,     note); },                           [note]);
-  useEffect(() => { localStorage.setItem(LS_CARDS,    JSON.stringify(cards)); },          [cards]);
-  useEffect(() => { localStorage.setItem(LS_DONE,     JSON.stringify([...doneIds])); },   [doneIds]);
-  useEffect(() => { localStorage.setItem(LS_DUEDATES, JSON.stringify(dueDates)); },       [dueDates]);
+  useEffect(() => { localStorage.setItem(LS_NOTE,       note); },                           [note]);
+  useEffect(() => { localStorage.setItem(LS_SAVED_NOTE, savedNote); },                      [savedNote]);
+  useEffect(() => { localStorage.setItem(LS_CARDS,      JSON.stringify(cards)); },          [cards]);
+  useEffect(() => { localStorage.setItem(LS_DONE,       JSON.stringify([...doneIds])); },   [doneIds]);
+  useEffect(() => { localStorage.setItem(LS_DUEDATES,   JSON.stringify(dueDates)); },       [dueDates]);
 
-  const handleNoteChange = (val: string) => {
-    setNote(val);
-    const parsed   = parseOnly(val);
+  // note typing only saves text — does NOT update cards
+  const handleNoteChange = (val: string) => { setNote(val); };
+
+  // Save button: commit note → cards
+  const handleSaveNote = () => {
+    const parsed   = parseOnly(note);
     const existing = new Set(cards.map((c) => c.text.toLowerCase().trim()));
     const dupes    = parsed.filter((c) => existing.has(c.text.toLowerCase().trim())).length;
     if (dupes > 0) { setDupWarning(dupes); setTimeout(() => setDupWarning(0), 2500); }
-    setCards(parseOnly(val));
+    setCards(parsed);
+    setSavedNote(note);
   };
 
-  const clearNote    = () => { setNote(""); setConfirmClear(false); };
+  // unsaved = note text differs from what was last committed
+  const hasUnsaved = note.trim() !== savedNote.trim();
+
+  const clearNote    = () => { setNote(""); setSavedNote(""); setConfirmClear(false); };
   const removeCard   = (id: string) => setCards((prev) => prev.filter((c) => c.id !== id));
   const toggleDone   = (id: string) =>
     setDoneIds((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -471,8 +485,22 @@ export default function AllMail() {
                     placeholder={"Paste emails here — one per line or comma separated.\nDuplicates are ignored automatically."}
                     className="w-full h-36 text-sm font-mono text-slate-700 dark:text-slate-300 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-2.5 outline-none resize-none placeholder:text-amber-300 dark:placeholder:text-amber-700 focus:border-amber-400 focus:ring-1 focus:ring-amber-200 dark:focus:ring-amber-800 transition-all" />
                   <div className="flex items-center justify-between mt-2">
-                    <p className="text-[11px] text-amber-500 dark:text-amber-600">Each line = 1 card · Clear All only clears note, cards stay · duplicates ignored</p>
-                    {dupWarning > 0 && <span className="text-[11px] text-orange-500 font-semibold animate-pulse">{dupWarning} duplicate{dupWarning > 1 ? "s" : ""} skipped</span>}
+                    <div className="flex items-center gap-2">
+                      <p className="text-[11px] text-amber-500 dark:text-amber-600">Each line = 1 card · Cards only update on Save · duplicates ignored</p>
+                      {dupWarning > 0 && <span className="text-[11px] text-orange-500 font-semibold animate-pulse">{dupWarning} duplicate{dupWarning > 1 ? "s" : ""} skipped</span>}
+                    </div>
+                    <button
+                      onClick={handleSaveNote}
+                      disabled={!hasUnsaved && cards.length > 0}
+                      className={`flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-lg transition-all shadow-sm ${
+                        hasUnsaved
+                          ? "bg-emerald-500 hover:bg-emerald-600 text-white animate-pulse"
+                          : "bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-default"
+                      }`}
+                    >
+                      <Check size={11} strokeWidth={3} />
+                      {hasUnsaved ? "Save" : "Saved"}
+                    </button>
                   </div>
                 </div>
               )}
