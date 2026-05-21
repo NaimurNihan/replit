@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Copy, Check, StickyNote, Trash2, ChevronDown, ChevronUp, CalendarDays } from "lucide-react";
+import { Copy, Check, StickyNote, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 
 const LS_NOTE  = "allmail_note_v1";
 const LS_DONE  = "allmail_done_v1";
@@ -60,22 +60,19 @@ function DateBox({
   const displayDay   = day ? (day === "-" ? "" : day.replace("-","")) : "";
 
   return (
-    <div className={`flex items-center gap-1 rounded-lg border px-1.5 py-0.5 text-[11px] font-medium transition-all ${
+    <div className={`flex items-center gap-0.5 rounded-lg border px-1.5 py-0.5 text-[11px] font-semibold transition-all ${
       value && value !== "-"
         ? done
           ? "border-emerald-300 bg-emerald-50 text-emerald-700"
           : "border-blue-200 bg-blue-50 text-blue-700"
         : "border-slate-200 bg-slate-50 text-slate-400"
     }`}>
-      <CalendarDays size={10} className="shrink-0 opacity-60" />
-
       {/* Month select */}
       <select
         value={month || ""}
         onClick={(e) => e.stopPropagation()}
         onChange={(e) => setMonth(e.target.value)}
-        className="bg-transparent outline-none cursor-pointer text-[11px] font-medium max-w-[34px]"
-        title="Month"
+        className="bg-transparent outline-none cursor-pointer text-[11px] font-semibold max-w-[34px]"
       >
         <option value="">MM</option>
         {MONTHS.map((m, i) => (
@@ -94,8 +91,7 @@ function DateBox({
         value={displayDay}
         onClick={(e) => e.stopPropagation()}
         onChange={(e) => setDay(e.target.value)}
-        className="bg-transparent outline-none w-[18px] text-center text-[11px] font-mono placeholder:text-slate-300"
-        title="Day"
+        className="bg-transparent outline-none w-[18px] text-center text-[11px] font-mono font-semibold placeholder:text-slate-300"
       />
     </div>
   );
@@ -209,7 +205,7 @@ export default function AllMail() {
                   </div>
 
                   {/* Mail text */}
-                  <p className={`text-xs font-mono break-all leading-relaxed flex-1 ${done ? "text-emerald-700 line-through opacity-60" : "text-slate-800"}`}>
+                  <p className={`text-sm font-mono font-semibold break-all leading-relaxed flex-1 ${done ? "text-emerald-700 line-through opacity-60" : "text-slate-800"}`}>
                     {card.text}
                   </p>
 
