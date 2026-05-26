@@ -103,14 +103,61 @@ function EntryRow({
   );
 }
 
-function FieldRow({ label, value, mono = true }: { label: string; value: string; mono?: boolean }) {
+function RawCard({ email, password }: { email: string; password: string }) {
+  const [copied, setCopied] = useState(false);
+  const text = `${email}|${password}`;
+  const handleClick = () => {
+    navigator.clipboard.writeText(text).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
   return (
-    <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-3 bg-white dark:bg-slate-800">
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">{label}</span>
-        <CopyButton text={value} label={label} />
+    <div
+      onClick={handleClick}
+      className={`rounded-xl p-4 mb-4 border cursor-pointer select-none transition-all duration-300 ${
+        copied
+          ? "bg-emerald-50 dark:bg-emerald-900/30 border-emerald-400 dark:border-emerald-600 ring-1 ring-emerald-300"
+          : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-emerald-300"
+      }`}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <span className={`text-xs font-semibold uppercase tracking-wider ${copied ? "text-emerald-500" : "text-slate-400 dark:text-slate-500"}`}>Raw Format</span>
+        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full transition-all ${copied ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600" : "text-slate-300 dark:text-slate-600"}`}>
+          {copied ? "✓ Copied" : "click to copy"}
+        </span>
       </div>
-      <p className={`text-sm text-slate-800 dark:text-slate-200 break-all leading-relaxed ${mono ? "font-mono" : ""}`}>
+      <p className={`text-xs font-mono break-all leading-relaxed ${copied ? "text-emerald-700 dark:text-emerald-300" : "text-slate-700 dark:text-slate-300"}`}>
+        <span>{email}</span>
+        <span className="text-slate-400">|</span>
+        <span>{password}</span>
+      </p>
+    </div>
+  );
+}
+
+function FieldRow({ label, value, mono = true }: { label: string; value: string; mono?: boolean }) {
+  const [copied, setCopied] = useState(false);
+  const handleClick = () => {
+    navigator.clipboard.writeText(value).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+  return (
+    <div
+      onClick={handleClick}
+      className={`border rounded-lg p-3 cursor-pointer select-none transition-all duration-300 ${
+        copied
+          ? "bg-emerald-50 dark:bg-emerald-900/30 border-emerald-400 dark:border-emerald-600 ring-1 ring-emerald-300 dark:ring-emerald-700"
+          : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-700"
+      }`}
+    >
+      <div className="flex items-center justify-between mb-1.5">
+        <span className={`text-xs font-semibold uppercase tracking-wider ${copied ? "text-emerald-500" : "text-slate-400 dark:text-slate-500"}`}>{label}</span>
+        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full transition-all ${copied ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600" : "text-slate-300 dark:text-slate-600"}`}>
+          {copied ? "✓ Copied" : "click to copy"}
+        </span>
+      </div>
+      <p className={`text-sm break-all leading-relaxed ${mono ? "font-mono" : ""} ${copied ? "text-emerald-700 dark:text-emerald-300" : "text-slate-800 dark:text-slate-200"}`}>
         {value}
       </p>
     </div>
@@ -414,27 +461,11 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="bg-slate-900 dark:bg-slate-950 rounded-xl p-4 mb-4 border border-slate-700 dark:border-slate-800">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-slate-400 font-medium">Raw Format</span>
-                  <CopyButton text={`${selected.email}|${selected.password}|${selected.cookie}|${selected.uuid}`} label="raw line" />
-                </div>
-                <p className="text-xs font-mono break-all leading-relaxed">
-                  <span className="text-blue-300">{selected.email}</span>
-                  <span className="text-slate-500">|</span>
-                  <span className="text-yellow-300">{selected.password}</span>
-                  <span className="text-slate-500">|</span>
-                  <span className="text-purple-300 opacity-70">{selected.cookie.slice(0, 40)}...</span>
-                  <span className="text-slate-500">|</span>
-                  <span className="text-pink-300">{selected.uuid}</span>
-                </p>
-              </div>
+              <RawCard email={selected.email} password={selected.password} />
 
               <div className="space-y-3">
                 <FieldRow label="Email" value={selected.email} />
                 <FieldRow label="Password" value={selected.password} />
-                <FieldRow label="Cookie" value={selected.cookie} />
-                <FieldRow label="UUID" value={selected.uuid} />
               </div>
             </div>
           )}
