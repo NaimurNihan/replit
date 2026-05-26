@@ -106,10 +106,12 @@ function EntryRow({
 function RawCard({ email, password, cookie, uuid }: { email: string; password: string; cookie: string; uuid: string }) {
   const [copied, setCopied] = useState(false);
   const text = `${email}|${password}|${cookie}|${uuid}`;
+  const SITE_URL = "https://dongvanfb.net/read_mail_box/";
   const handleClick = () => {
     navigator.clipboard.writeText(text).catch(() => {});
+    window.open(SITE_URL, "_blank", "noopener,noreferrer");
     setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    setTimeout(() => setCopied(false), 2000);
   };
   return (
     <div
@@ -122,8 +124,12 @@ function RawCard({ email, password, cookie, uuid }: { email: string; password: s
     >
       <div className="flex items-center justify-between mb-2">
         <span className={`text-xs font-semibold uppercase tracking-wider ${copied ? "text-emerald-500" : "text-slate-400 dark:text-slate-500"}`}>Raw Format</span>
-        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full transition-all ${copied ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600" : "text-slate-300 dark:text-slate-600"}`}>
-          {copied ? "✓ Copied" : "click to copy"}
+        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full transition-all ${
+          copied
+            ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600"
+            : "bg-red-50 dark:bg-red-900/20 text-red-400 border border-red-200 dark:border-red-800"
+        }`}>
+          {copied ? "✓ Copied — paste on site" : "click → copy + open site"}
         </span>
       </div>
       <p className={`text-xs font-mono break-all leading-relaxed ${copied ? "text-emerald-700 dark:text-emerald-300" : "text-slate-700 dark:text-slate-300"}`}>
