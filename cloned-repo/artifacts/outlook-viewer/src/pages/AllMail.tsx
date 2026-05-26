@@ -256,10 +256,15 @@ export default function AllMail() {
     setCollapsedGroups((prev) => { const n = new Set(prev); n.has(gi) ? n.delete(gi) : n.add(gi); return n; });
 
   const handleDownload = () => {
-    const blob = new Blob([cards.map((c) => c.text).join("\n")], { type: "text/plain" });
+    const payload = {
+      cards,
+      doneIds: [...doneIds],
+      dueDates,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a");
-    a.href = url; a.download = "allmail_export.txt"; a.click();
+    a.href = url; a.download = "allmail_export.json"; a.click();
     URL.revokeObjectURL(url);
   };
 
@@ -267,7 +272,19 @@ export default function AllMail() {
     const file = e.target.files?.[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      setCards(parseAndMerge((ev.target?.result as string) ?? "", cards));
+      const raw = (ev.target?.result as string) ?? "";
+      if (file.name.endsWith(".json")) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed.cards && Array.isArray(parsed.cards)) {
+            setCards(parsed.cards);
+            if (Array.isArray(parsed.doneIds)) setDoneIds(new Set(parsed.doneIds));
+            if (parsed.dueDates && typeof parsed.dueDates === "object") setDueDates(parsed.dueDates);
+          }
+        } catch { /* ignore malformed JSON */ }
+      } else {
+        setCards(parseAndMerge(raw, cards));
+      }
       if (uploadRef.current) uploadRef.current.value = "";
     };
     reader.readAsText(file);
@@ -334,7 +351,7 @@ export default function AllMail() {
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
             <Upload size={12} /> Upload
           </button>
-          <input ref={uploadRef} type="file" accept=".txt,.csv" className="hidden" onChange={handleUploadFile} />
+          <input ref={uploadRef} type="file" accept=".txt,.csv,.json" className="hidden" onChange={handleUploadFile} />
           <button onClick={handleDownload} disabled={total === 0}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-slate-700 dark:bg-slate-600 text-white rounded-lg hover:bg-slate-800 dark:hover:bg-slate-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shadow-sm">
             <Download size={12} /> Download
