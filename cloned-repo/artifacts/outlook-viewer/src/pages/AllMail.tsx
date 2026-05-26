@@ -211,10 +211,11 @@ export default function AllMail() {
     () => localStorage.getItem(LS_SAVED_NOTE) ?? localStorage.getItem(LS_NOTE) ?? ""
   );
 
-  const [noteOpen,        setNoteOpen]        = useState(true);
-  const [confirmClear,    setConfirmClear]    = useState(false);
-  const [dupWarning,      setDupWarning]      = useState(0);
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<number>>(new Set());
+  const [noteOpen,          setNoteOpen]          = useState(true);
+  const [confirmClear,      setConfirmClear]      = useState(false);
+  const [confirmDeleteAll,  setConfirmDeleteAll]  = useState(false);
+  const [dupWarning,        setDupWarning]        = useState(0);
+  const [collapsedGroups,   setCollapsedGroups]   = useState<Set<number>>(new Set());
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uploadRef   = useRef<HTMLInputElement>(null);
@@ -243,6 +244,17 @@ export default function AllMail() {
   const hasUnsaved = note.trim() !== savedNote.trim();
 
   const clearNote    = () => { setNote(""); setSavedNote(""); setConfirmClear(false); };
+
+  const handleDeleteAll = () => {
+    setCards([]);
+    setDoneIds(new Set());
+    setCopiedIds(new Set());
+    setDueDates({});
+    setNote("");
+    setSavedNote("");
+    setCollapsedGroups(new Set());
+    setConfirmDeleteAll(false);
+  };
   const markCopied   = (id: string) => setCopiedIds((prev) => new Set([...prev, id]));
   const unmarkCopied = (id: string) => setCopiedIds((prev) => { const n = new Set(prev); n.delete(id); return n; });
   const removeCard   = (id: string) => setCards((prev) => prev.filter((c) => c.id !== id));
@@ -356,8 +368,45 @@ export default function AllMail() {
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-slate-700 dark:bg-slate-600 text-white rounded-lg hover:bg-slate-800 dark:hover:bg-slate-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shadow-sm">
             <Download size={12} /> Download
           </button>
+          {total > 0 && (
+            <button onClick={() => setConfirmDeleteAll(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-sm">
+              <Trash2 size={12} /> Delete All
+            </button>
+          )}
         </div>
       </header>
+
+      {/* ── Delete All Confirmation Modal ──────────────── */}
+      {confirmDeleteAll && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 w-80 flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center shrink-0">
+                <Trash2 size={18} className="text-red-600 dark:text-red-400" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-800 dark:text-slate-100">Delete All Groups?</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">This will permanently remove all cards, done marks, and due dates.</p>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setConfirmDeleteAll(false)}
+                className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+              >
+                No
+              </button>
+              <button
+                onClick={handleDeleteAll}
+                className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+              >
+                Yes, Delete All
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Body: sidebar + main ──────────────────────── */}
       <div className="flex-1 flex overflow-hidden min-h-0">
