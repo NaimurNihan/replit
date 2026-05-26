@@ -312,8 +312,10 @@ export default function AllMail() {
   const toggleAllGroups = () => {
     if (allExpanded) {
       setCollapsedGroups(new Set(groups.map((_, i) => i)));
+      setNoteOpen(false);
     } else {
       setCollapsedGroups(new Set());
+      setNoteOpen(true);
     }
   };
 
