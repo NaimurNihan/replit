@@ -529,7 +529,7 @@ export default function AllMail() {
           <div className="max-w-4xl mx-auto px-4 py-5 space-y-4">
 
             {/* ── Note card ──────────────────────────────── */}
-            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-800 rounded-2xl shadow-sm overflow-hidden">
               <div className="flex items-center justify-between px-4 py-3 select-none">
                 <div className="flex items-center gap-2 cursor-pointer flex-1" onClick={() => setNoteOpen((v) => !v)}>
                   <StickyNote size={15} className="text-amber-500" />
@@ -573,7 +573,7 @@ export default function AllMail() {
                 <div className="px-4 pb-4">
                   <textarea ref={textareaRef} value={note} onChange={(e) => handleNoteChange(e.target.value)}
                     placeholder={"Paste emails here — one per line or comma separated.\nDuplicates are ignored automatically."}
-                    className="w-full h-80 text-sm font-mono text-slate-700 dark:text-slate-300 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-2.5 outline-none resize-none placeholder:text-amber-300 dark:placeholder:text-amber-700 focus:border-amber-400 focus:ring-1 focus:ring-amber-200 dark:focus:ring-amber-800 transition-all" />
+                    className="w-full h-80 text-sm font-mono text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 outline-none resize-none placeholder:text-slate-300 dark:placeholder:text-slate-500 focus:border-amber-400 focus:ring-1 focus:ring-amber-200 dark:focus:ring-amber-800 transition-all" />
                   {dupWarning > 0 && <span className="text-[11px] text-orange-500 font-semibold animate-pulse mt-1">{dupWarning} duplicate{dupWarning > 1 ? "s" : ""} skipped</span>}
                 </div>
               )}
