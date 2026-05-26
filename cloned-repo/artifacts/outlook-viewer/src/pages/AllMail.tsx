@@ -573,11 +573,8 @@ export default function AllMail() {
                 <div className="px-4 pb-4">
                   <textarea ref={textareaRef} value={note} onChange={(e) => handleNoteChange(e.target.value)}
                     placeholder={"Paste emails here — one per line or comma separated.\nDuplicates are ignored automatically."}
-                    className="w-full h-64 text-sm font-mono text-slate-700 dark:text-slate-300 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-2.5 outline-none resize-none placeholder:text-amber-300 dark:placeholder:text-amber-700 focus:border-amber-400 focus:ring-1 focus:ring-amber-200 dark:focus:ring-amber-800 transition-all" />
-                  <div className="flex items-center gap-2 mt-2">
-                    <p className="text-[11px] text-amber-500 dark:text-amber-600">Each line = 1 card · Cards only update on Save · duplicates ignored</p>
-                    {dupWarning > 0 && <span className="text-[11px] text-orange-500 font-semibold animate-pulse">{dupWarning} duplicate{dupWarning > 1 ? "s" : ""} skipped</span>}
-                  </div>
+                    className="w-full h-80 text-sm font-mono text-slate-700 dark:text-slate-300 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-2.5 outline-none resize-none placeholder:text-amber-300 dark:placeholder:text-amber-700 focus:border-amber-400 focus:ring-1 focus:ring-amber-200 dark:focus:ring-amber-800 transition-all" />
+                  {dupWarning > 0 && <span className="text-[11px] text-orange-500 font-semibold animate-pulse mt-1">{dupWarning} duplicate{dupWarning > 1 ? "s" : ""} skipped</span>}
                 </div>
               )}
             </div>
