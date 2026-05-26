@@ -586,22 +586,34 @@ export default function AllMail() {
               const remaining      = total - doneCount;
               const pct            = total > 0 ? Math.round((doneCount / total) * 100) : 0;
               return (
-                <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm px-4 py-2 flex items-center gap-4">
-                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 shrink-0">Overview</span>
-                  <div className="flex items-center gap-3 flex-1">
-                    <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300"><span className="font-extrabold text-sm">{total}</span> Total</span>
-                    <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400"><span className="font-extrabold text-sm">{doneCount}</span> Done</span>
-                    <span className="text-[11px] font-semibold text-blue-500 dark:text-blue-400"><span className="font-extrabold text-sm">{remaining}</span> Left</span>
-                    <span className={`text-[11px] font-semibold ${overdueCount > 0 ? "text-red-500 dark:text-red-400" : "text-orange-500 dark:text-orange-400"}`}>
-                      <span className="font-extrabold text-sm">{overdueCount > 0 ? overdueCount : scheduledCount}</span> {overdueCount > 0 ? "Overdue" : "Sched."}
-                    </span>
+                <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm px-3 py-2">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Overview</span>
+                    <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500">{groups.length} group{groups.length !== 1 ? "s" : ""}</span>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <div className="w-24 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                  <div className="grid grid-cols-4 gap-1.5 mb-1.5">
+                    <div className="flex flex-col items-center bg-slate-50 dark:bg-slate-700/50 rounded-lg py-1 px-1">
+                      <span className="text-sm font-extrabold text-slate-700 dark:text-slate-200 leading-none">{total}</span>
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 font-medium">Total</span>
+                    </div>
+                    <div className="flex flex-col items-center bg-emerald-50 dark:bg-emerald-900/20 rounded-lg py-1 px-1">
+                      <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400 leading-none">{doneCount}</span>
+                      <span className="text-[10px] text-emerald-500 dark:text-emerald-500 mt-0.5 font-medium">Done</span>
+                    </div>
+                    <div className="flex flex-col items-center bg-blue-50 dark:bg-blue-900/20 rounded-lg py-1 px-1">
+                      <span className="text-sm font-extrabold text-blue-600 dark:text-blue-400 leading-none">{remaining}</span>
+                      <span className="text-[10px] text-blue-400 dark:text-blue-500 mt-0.5 font-medium">Left</span>
+                    </div>
+                    <div className={`flex flex-col items-center rounded-lg py-1 px-1 ${overdueCount > 0 ? "bg-red-50 dark:bg-red-900/20" : "bg-orange-50 dark:bg-orange-900/10"}`}>
+                      <span className={`text-sm font-extrabold leading-none ${overdueCount > 0 ? "text-red-600 dark:text-red-400" : "text-orange-500 dark:text-orange-400"}`}>{overdueCount > 0 ? overdueCount : scheduledCount}</span>
+                      <span className={`text-[10px] mt-0.5 font-medium ${overdueCount > 0 ? "text-red-400 dark:text-red-500" : "text-orange-400 dark:text-orange-500"}`}>{overdueCount > 0 ? "Overdue" : "Sched."}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
                       <div className="h-full bg-emerald-400 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
                     </div>
-                    <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500">{pct}%</span>
-                    <span className="text-[11px] text-slate-400 dark:text-slate-500">{groups.length} group{groups.length !== 1 ? "s" : ""}</span>
+                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 w-8 text-right">{pct}%</span>
                   </div>
                 </div>
               );
