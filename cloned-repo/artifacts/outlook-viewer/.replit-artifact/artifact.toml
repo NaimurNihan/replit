@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Outlook Mail Viewer"
+version = "1.0.0"
+id = "artifacts/outlook-viewer"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23471
+
+[services.development]
+run = "pnpm --filter @workspace/outlook-viewer run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/outlook-viewer", "run", "build" ]
+publicDir = "artifacts/outlook-viewer/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23471"
+BASE_PATH = "/"
