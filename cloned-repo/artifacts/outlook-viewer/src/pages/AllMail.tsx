@@ -538,6 +538,18 @@ export default function AllMail() {
                 </div>
                 <div className="flex items-center gap-1.5">
                   {doneCount > 0 && <span className="text-[11px] bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 font-semibold px-2 py-0.5 rounded-full">✓ {doneCount} done</span>}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleSaveNote(); }}
+                    disabled={!hasUnsaved && cards.length > 0}
+                    className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all shadow-sm ${
+                      hasUnsaved
+                        ? "bg-emerald-500 hover:bg-emerald-600 text-white animate-pulse"
+                        : "bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-default"
+                    }`}
+                  >
+                    <Check size={11} strokeWidth={3} />
+                    {hasUnsaved ? "Save" : "Saved"}
+                  </button>
                   {note && (
                     confirmClear ? (
                       <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -561,24 +573,10 @@ export default function AllMail() {
                 <div className="px-4 pb-4">
                   <textarea ref={textareaRef} value={note} onChange={(e) => handleNoteChange(e.target.value)}
                     placeholder={"Paste emails here — one per line or comma separated.\nDuplicates are ignored automatically."}
-                    className="w-full h-36 text-sm font-mono text-slate-700 dark:text-slate-300 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-2.5 outline-none resize-none placeholder:text-amber-300 dark:placeholder:text-amber-700 focus:border-amber-400 focus:ring-1 focus:ring-amber-200 dark:focus:ring-amber-800 transition-all" />
-                  <div className="flex items-center justify-between mt-2">
-                    <div className="flex items-center gap-2">
-                      <p className="text-[11px] text-amber-500 dark:text-amber-600">Each line = 1 card · Cards only update on Save · duplicates ignored</p>
-                      {dupWarning > 0 && <span className="text-[11px] text-orange-500 font-semibold animate-pulse">{dupWarning} duplicate{dupWarning > 1 ? "s" : ""} skipped</span>}
-                    </div>
-                    <button
-                      onClick={handleSaveNote}
-                      disabled={!hasUnsaved && cards.length > 0}
-                      className={`flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-lg transition-all shadow-sm ${
-                        hasUnsaved
-                          ? "bg-emerald-500 hover:bg-emerald-600 text-white animate-pulse"
-                          : "bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-default"
-                      }`}
-                    >
-                      <Check size={11} strokeWidth={3} />
-                      {hasUnsaved ? "Save" : "Saved"}
-                    </button>
+                    className="w-full h-64 text-sm font-mono text-slate-700 dark:text-slate-300 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-2.5 outline-none resize-none placeholder:text-amber-300 dark:placeholder:text-amber-700 focus:border-amber-400 focus:ring-1 focus:ring-amber-200 dark:focus:ring-amber-800 transition-all" />
+                  <div className="flex items-center gap-2 mt-2">
+                    <p className="text-[11px] text-amber-500 dark:text-amber-600">Each line = 1 card · Cards only update on Save · duplicates ignored</p>
+                    {dupWarning > 0 && <span className="text-[11px] text-orange-500 font-semibold animate-pulse">{dupWarning} duplicate{dupWarning > 1 ? "s" : ""} skipped</span>}
                   </div>
                 </div>
               )}
