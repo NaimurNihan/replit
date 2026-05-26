@@ -103,9 +103,9 @@ function EntryRow({
   );
 }
 
-function RawCard({ email, password }: { email: string; password: string }) {
+function RawCard({ email, password, cookie, uuid }: { email: string; password: string; cookie: string; uuid: string }) {
   const [copied, setCopied] = useState(false);
-  const text = `${email}|${password}`;
+  const text = `${email}|${password}|${cookie}|${uuid}`;
   const handleClick = () => {
     navigator.clipboard.writeText(text).catch(() => {});
     setCopied(true);
@@ -127,9 +127,7 @@ function RawCard({ email, password }: { email: string; password: string }) {
         </span>
       </div>
       <p className={`text-xs font-mono break-all leading-relaxed ${copied ? "text-emerald-700 dark:text-emerald-300" : "text-slate-700 dark:text-slate-300"}`}>
-        <span>{email}</span>
-        <span className="text-slate-400">|</span>
-        <span>{password}</span>
+        {text}
       </p>
     </div>
   );
@@ -461,7 +459,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <RawCard email={selected.email} password={selected.password} />
+              <RawCard email={selected.email} password={selected.password} cookie={selected.cookie} uuid={selected.uuid} />
 
               <div className="space-y-3">
                 <FieldRow label="Email" value={selected.email} />
