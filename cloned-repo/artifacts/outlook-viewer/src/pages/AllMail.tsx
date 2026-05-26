@@ -529,7 +529,7 @@ export default function AllMail() {
           <div className="max-w-4xl mx-auto px-4 py-5 space-y-4">
 
             {/* ── Note card ──────────────────────────────── */}
-            <div className="bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-800 rounded-2xl shadow-sm overflow-hidden">
+            <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
               <div className="flex items-center justify-between px-4 py-3 select-none">
                 <div className="flex items-center gap-2 cursor-pointer flex-1" onClick={() => setNoteOpen((v) => !v)}>
                   <StickyNote size={15} className="text-amber-500" />
