@@ -470,12 +470,18 @@ export default function AllMail() {
                       urgency === "orange" ? "text-orange-600 dark:text-orange-400 font-bold" :
                       urgency === "yellow" ? "text-yellow-600 dark:text-yellow-400 font-bold" :
                                             "text-slate-500 dark:text-slate-400";
+                    const groupNum = Math.floor(globalIdx / GROUP_SIZE) + 1;
                     return (
                       <div key={card.id} className={`rounded-lg border px-2.5 py-2 ${bgClass}`}>
                         <div className="flex items-center justify-between mb-1">
-                          <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${numClass}`}>
-                            #{String(globalIdx + 1).padStart(3, "0")}
-                          </span>
+                          <div className="flex items-center gap-1">
+                            <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${numClass}`}>
+                              #{String(globalIdx + 1).padStart(3, "0")}
+                            </span>
+                            <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
+                              G{groupNum}
+                            </span>
+                          </div>
                           {isOverdue ? (
                             <span className="text-[9px] font-extrabold text-white bg-red-500 dark:bg-red-600 px-1.5 py-0.5 rounded animate-pulse">
                               OVER DATE
