@@ -214,6 +214,7 @@ export default function AllMail() {
   const [noteOpen,          setNoteOpen]          = useState(true);
   const [confirmClear,      setConfirmClear]      = useState(false);
   const [confirmDeleteAll,  setConfirmDeleteAll]  = useState(false);
+  const [confirmDeleteCardId, setConfirmDeleteCardId] = useState<string | null>(null);
   const [dupWarning,        setDupWarning]        = useState(0);
   const [collapsedGroups,   setCollapsedGroups]   = useState<Set<number>>(new Set());
 
@@ -672,7 +673,7 @@ export default function AllMail() {
                           <div key={card.id}
                             onDoubleClick={() => isCopied ? unmarkCopied(card.id) : undefined}
                             title={isCopied ? "Double-click to reset" : undefined}
-                            className={`rounded-xl border flex flex-col gap-0 transition-all shadow-sm overflow-hidden ${
+                            className={`rounded-xl border flex flex-col gap-0 transition-all shadow-sm overflow-hidden relative ${
                               inactive
                                 ? "bg-gray-950 border-gray-800"
                                 : isCopied
@@ -708,6 +709,23 @@ export default function AllMail() {
                               </div>
                             )}
 
+                            {confirmDeleteCardId === card.id && (
+                              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-xl bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm">
+                                <p className="text-xs font-bold text-slate-700 dark:text-slate-200">Remove this card?</p>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => { removeCard(card.id); setConfirmDeleteCardId(null); }}
+                                    className="px-3 py-1 text-xs font-bold bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors">
+                                    Yes
+                                  </button>
+                                  <button
+                                    onClick={() => setConfirmDeleteCardId(null)}
+                                    className="px-3 py-1 text-xs font-bold bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 rounded-lg transition-colors">
+                                    No
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                             <div className="p-3.5 flex flex-col gap-2.5 flex-1">
                               <div className="flex items-center justify-between gap-2">
                                 <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md ${
@@ -717,7 +735,7 @@ export default function AllMail() {
                                 </span>
                                 <div className="flex items-center gap-1 ml-auto">
                                   {done && !inactive && <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-1.5 py-0.5 rounded-full">DONE</span>}
-                                  <button onClick={() => removeCard(card.id)}
+                                  <button onClick={() => setConfirmDeleteCardId(card.id)}
                                     className={`w-5 h-5 rounded-full flex items-center justify-center transition-colors ${
                                       inactive ? "text-white/20 hover:bg-white/10 hover:text-white/60" : "text-slate-300 dark:text-slate-600 hover:bg-red-100 dark:hover:bg-red-900/30 hover:text-red-500"
                                     }`}>
