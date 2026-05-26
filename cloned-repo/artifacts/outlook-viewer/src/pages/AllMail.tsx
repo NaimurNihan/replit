@@ -734,12 +734,14 @@ export default function AllMail() {
 
                               <div className={`flex items-center gap-1.5 pt-2 border-t ${inactive ? "border-white/10" : "border-slate-100 dark:border-slate-700"}`}>
                                 <CopyBtn text={card.text} dark={inactive} onCopy={!inactive ? () => markCopied(card.id) : undefined} />
-                                <DaysInput
-                                  value={isoVal}
-                                  onChange={(iso) => setDueDate(card.id, iso)}
-                                  inactive={inactive}
-                                  dark={inactive}
-                                />
+                                {(done || inactive) && (
+                                  <DaysInput
+                                    value={isoVal}
+                                    onChange={(iso) => setDueDate(card.id, iso)}
+                                    inactive={inactive}
+                                    dark={inactive}
+                                  />
+                                )}
                                 {!inactive && (
                                   <button onClick={() => toggleDone(card.id)}
                                     className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-all ml-auto ${
